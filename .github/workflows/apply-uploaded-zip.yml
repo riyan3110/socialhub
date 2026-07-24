@@ -1,6 +1,7 @@
 name: Apply uploaded project ZIP
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
