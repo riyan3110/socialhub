@@ -1,0 +1,6 @@
+{
+  "name": "SocialHub",
+  "description": "Dashboard penyatu sosial media: Telegram, WhatsApp, Facebook, Instagram, Twitter/X, dan TikTok dalam satu platform efisien.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

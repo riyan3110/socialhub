@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer interconnected social hub ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#60A5FA"
+        android:strokeWidth="3.5"
+        android:pathData="M34,54 A20,20 0 1,1 74,54 A20,20 0 1,1 34,54" />
+        
+    <!-- Connecting lines -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="3"
+        android:pathData="M54,34 L54,24 M74,54 L84,54 M54,74 L54,84 M34,54 L24,54 M68,40 L76,32 M68,68 L76,76 M40,68 L32,76 M40,40 L32,32" />
+
+    <!-- Central Hub Badge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,42 C47.37,42 42,47.37 42,54 C42,60.63 47.37,66 54,66 C60.63,66 66,60.63 66,54 C66,47.37 60.63,42 54,42 Z M54,60 C50.69,60 48,57.31 48,54 C48,50.69 50.69,48 54,48 C57.31,48 60,50.69 60,54 C60,57.31 57.31,60 54,60 Z" />
+
+    <!-- Platform Nodes Circles -->
+    <path android:fillColor="#229ED9" android:pathData="M54,24 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" /> <!-- Telegram -->
+    <path android:fillColor="#25D366" android:pathData="M84,54 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" /> <!-- WhatsApp -->
+    <path android:fillColor="#1877F2" android:pathData="M54,84 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" /> <!-- Facebook -->
+    <path android:fillColor="#E4405F" android:pathData="M24,54 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" /> <!-- Instagram -->
+    <path android:fillColor="#38BDF8" android:pathData="M76,32 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" /> <!-- X -->
+    <path android:fillColor="#FF0050" android:pathData="M32,32 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" /> <!-- TikTok -->
+
+    <!-- Central Share Icon -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M54,50 C51.79,50 50,51.79 50,54 C50,56.21 51.79,58 54,58 C56.21,58 58,56.21 58,54 C58,51.79 56.21,50 54,50 Z" />
+</vector>
