@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - master
-    paths:
-      - project-update.ready
 
 permissions:
   contents: write
 
 jobs:
   apply-update:
+    if: ${{ hashFiles('project-update.ready') != '' }}
     runs-on: ubuntu-latest
 
     steps:
