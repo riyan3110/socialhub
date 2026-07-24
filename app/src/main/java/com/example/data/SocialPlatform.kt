@@ -1,24 +1,7 @@
 package com.example.data
 
 import androidx.compose.ui.graphics.Color
-import com.example.ui.theme.BentoFacebookBorder
-import com.example.ui.theme.BentoFacebookContainer
-import com.example.ui.theme.BentoFacebookText
-import com.example.ui.theme.BentoInstagramBorder
-import com.example.ui.theme.BentoInstagramContainer
-import com.example.ui.theme.BentoInstagramText
-import com.example.ui.theme.BentoTelegramBorder
-import com.example.ui.theme.BentoTelegramContainer
-import com.example.ui.theme.BentoTelegramText
-import com.example.ui.theme.BentoTikTokBorder
-import com.example.ui.theme.BentoTikTokContainer
-import com.example.ui.theme.BentoTikTokText
-import com.example.ui.theme.BentoWhatsAppBorder
-import com.example.ui.theme.BentoWhatsAppContainer
-import com.example.ui.theme.BentoWhatsAppText
-import com.example.ui.theme.BentoXBorder
-import com.example.ui.theme.BentoXContainer
-import com.example.ui.theme.BentoXText
+import com.example.ui.theme.*
 
 enum class SocialPlatform(
     val id: String,
@@ -30,8 +13,57 @@ enum class SocialPlatform(
     val bentoBorderColor: Color,
     val bentoTextColor: Color,
     val webUrl: String,
-    val iconName: String
+    val iconName: String,
+    val useCustomTabs: Boolean = false,
+    val category: String = "Social",
+    val description: String = ""
 ) {
+    // --- Embedded Modern WebView Platforms ---
+    TWITTER_X(
+        id = "TWITTER_X",
+        displayName = "Twitter / X",
+        shortName = "X",
+        handlePrefix = "@",
+        brandColor = Color(0xFF1DA1F2),
+        bentoContainerColor = BentoXContainer,
+        bentoBorderColor = BentoXBorder,
+        bentoTextColor = BentoXText,
+        webUrl = "https://x.com",
+        iconName = "Tag",
+        useCustomTabs = false,
+        category = "Social",
+        description = "Trending topics, posts, and real-time updates"
+    ),
+    REDDIT(
+        id = "REDDIT",
+        displayName = "Reddit",
+        shortName = "RD",
+        handlePrefix = "u/",
+        brandColor = Color(0xFFFF4500),
+        bentoContainerColor = BentoRedditContainer,
+        bentoBorderColor = BentoRedditBorder,
+        bentoTextColor = BentoRedditText,
+        webUrl = "https://www.reddit.com",
+        iconName = "Forum",
+        useCustomTabs = false,
+        category = "Social",
+        description = "Dive into anything & community discussions"
+    ),
+    DISCORD(
+        id = "DISCORD",
+        displayName = "Discord",
+        shortName = "DC",
+        handlePrefix = "@",
+        brandColor = Color(0xFF5865F2),
+        bentoContainerColor = BentoDiscordContainer,
+        bentoBorderColor = BentoDiscordBorder,
+        bentoTextColor = BentoDiscordText,
+        webUrl = "https://discord.com/app",
+        iconName = "Chat",
+        useCustomTabs = false,
+        category = "Messaging",
+        description = "Talk, chat, hang out, and stay close"
+    ),
     TELEGRAM(
         id = "TELEGRAM",
         displayName = "Telegram",
@@ -42,19 +74,102 @@ enum class SocialPlatform(
         bentoBorderColor = BentoTelegramBorder,
         bentoTextColor = BentoTelegramText,
         webUrl = "https://web.telegram.org",
-        iconName = "Send"
+        iconName = "Send",
+        useCustomTabs = false,
+        category = "Messaging",
+        description = "Fast and secure cloud messaging web app"
+    ),
+    GITHUB(
+        id = "GITHUB",
+        displayName = "GitHub",
+        shortName = "GH",
+        handlePrefix = "@",
+        brandColor = Color(0xFF24292E),
+        bentoContainerColor = BentoGitHubContainer,
+        bentoBorderColor = BentoGitHubBorder,
+        bentoTextColor = BentoGitHubText,
+        webUrl = "https://github.com",
+        iconName = "Code",
+        useCustomTabs = false,
+        category = "Developer",
+        description = "Code hosting, pull requests, & developer hub"
+    ),
+    LINKEDIN(
+        id = "LINKEDIN",
+        displayName = "LinkedIn",
+        shortName = "IN",
+        handlePrefix = "in/",
+        brandColor = Color(0xFF0A66C2),
+        bentoContainerColor = BentoLinkedInContainer,
+        bentoBorderColor = BentoLinkedInBorder,
+        bentoTextColor = BentoLinkedInText,
+        webUrl = "https://www.linkedin.com",
+        iconName = "Work",
+        useCustomTabs = false,
+        category = "Professional",
+        description = "Professional networking & career opportunities"
+    ),
+    THREADS(
+        id = "THREADS",
+        displayName = "Threads",
+        shortName = "TH",
+        handlePrefix = "@",
+        brandColor = Color(0xFF101010),
+        bentoContainerColor = BentoThreadsContainer,
+        bentoBorderColor = BentoThreadsBorder,
+        bentoTextColor = BentoThreadsText,
+        webUrl = "https://www.threads.net",
+        iconName = "AlternateEmail",
+        useCustomTabs = false,
+        category = "Social",
+        description = "Say more with text & public conversations"
+    ),
+    MEDIUM(
+        id = "MEDIUM",
+        displayName = "Medium",
+        shortName = "MD",
+        handlePrefix = "@",
+        brandColor = Color(0xFF000000),
+        bentoContainerColor = BentoMediumContainer,
+        bentoBorderColor = BentoMediumBorder,
+        bentoTextColor = BentoMediumText,
+        webUrl = "https://medium.com",
+        iconName = "Article",
+        useCustomTabs = false,
+        category = "Developer",
+        description = "Read, write, and discover big ideas"
+    ),
+
+    // --- Chrome Custom Tabs Platforms (Automated Smart Routing) ---
+    TIKTOK(
+        id = "TIKTOK",
+        displayName = "TikTok",
+        shortName = "TIKTOK",
+        handlePrefix = "@",
+        brandColor = Color(0xFFFE2C55),
+        bentoContainerColor = BentoTikTokContainer,
+        bentoBorderColor = BentoTikTokBorder,
+        bentoTextColor = BentoTikTokText,
+        webUrl = "https://www.tiktok.com",
+        iconName = "Videocam",
+        useCustomTabs = true,
+        category = "Social",
+        description = "Short-form video content & trending sound"
     ),
     WHATSAPP(
         id = "WHATSAPP",
         displayName = "WhatsApp",
         shortName = "WA",
-        handlePrefix = "+62",
+        handlePrefix = "+",
         brandColor = Color(0xFF25D366),
         bentoContainerColor = BentoWhatsAppContainer,
         bentoBorderColor = BentoWhatsAppBorder,
         bentoTextColor = BentoWhatsAppText,
         webUrl = "https://web.whatsapp.com",
-        iconName = "Chat"
+        iconName = "Chat",
+        useCustomTabs = true,
+        category = "Messaging",
+        description = "Simple, reliable private messaging"
     ),
     FACEBOOK(
         id = "FACEBOOK",
@@ -66,7 +181,25 @@ enum class SocialPlatform(
         bentoBorderColor = BentoFacebookBorder,
         bentoTextColor = BentoFacebookText,
         webUrl = "https://m.facebook.com",
-        iconName = "ThumbUp"
+        iconName = "ThumbUp",
+        useCustomTabs = true,
+        category = "Social",
+        description = "Connect with friends, groups, & marketplace"
+    ),
+    MESSENGER(
+        id = "MESSENGER",
+        displayName = "Messenger",
+        shortName = "MSG",
+        handlePrefix = "@",
+        brandColor = Color(0xFF0084FF),
+        bentoContainerColor = BentoMessengerContainer,
+        bentoBorderColor = BentoMessengerBorder,
+        bentoTextColor = BentoMessengerText,
+        webUrl = "https://www.messenger.com",
+        iconName = "QuestionAnswer",
+        useCustomTabs = true,
+        category = "Messaging",
+        description = "Instant chat and video calling"
     ),
     INSTAGRAM(
         id = "INSTAGRAM",
@@ -78,36 +211,30 @@ enum class SocialPlatform(
         bentoBorderColor = BentoInstagramBorder,
         bentoTextColor = BentoInstagramText,
         webUrl = "https://www.instagram.com",
-        iconName = "CameraAlt"
+        iconName = "CameraAlt",
+        useCustomTabs = true,
+        category = "Social",
+        description = "Photos, reels, stories, and creator posts"
     ),
-    TWITTER_X(
-        id = "TWITTER_X",
-        displayName = "Twitter / X",
-        shortName = "X",
-        handlePrefix = "@",
-        brandColor = Color(0xFF1DA1F2),
-        bentoContainerColor = BentoXContainer,
-        bentoBorderColor = BentoXBorder,
-        bentoTextColor = BentoXText,
-        webUrl = "https://x.com",
-        iconName = "Tag"
-    ),
-    TIKTOK(
-        id = "TIKTOK",
-        displayName = "TikTok",
-        shortName = "TIKTOK",
-        handlePrefix = "@",
-        brandColor = Color(0xFFFE2C55),
-        bentoContainerColor = BentoTikTokContainer,
-        bentoBorderColor = BentoTikTokBorder,
-        bentoTextColor = BentoTikTokText,
-        webUrl = "https://www.tiktok.com",
-        iconName = "Videocam"
+    GOOGLE_LOGIN(
+        id = "GOOGLE_LOGIN",
+        displayName = "Google",
+        shortName = "G",
+        handlePrefix = "@gmail.com",
+        brandColor = Color(0xFFEA4335),
+        bentoContainerColor = BentoGoogleContainer,
+        bentoBorderColor = BentoGoogleBorder,
+        bentoTextColor = BentoGoogleText,
+        webUrl = "https://accounts.google.com",
+        iconName = "AccountCircle",
+        useCustomTabs = true,
+        category = "Professional",
+        description = "Secure Google Accounts & OAuth portal"
     );
 
     companion object {
         fun fromId(id: String): SocialPlatform {
-            return entries.find { it.id.equals(id, ignoreCase = true) } ?: TELEGRAM
+            return entries.find { it.id.equals(id, ignoreCase = true) } ?: TWITTER_X
         }
     }
 }

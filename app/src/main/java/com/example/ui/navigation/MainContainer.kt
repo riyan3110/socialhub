@@ -18,10 +18,13 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DynamicFeed
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -39,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +52,8 @@ import com.example.ui.screens.AccountsScreen
 import com.example.ui.screens.ComposerScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.InboxScreen
+import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.ThemeManagerScreen
 import com.example.ui.screens.WebBrowserScreen
 import com.example.ui.viewmodel.SocialViewModel
 
@@ -65,6 +69,12 @@ enum class NavigationTab(
     ACCOUNTS("accounts", "Akun", Icons.Default.ManageAccounts)
 }
 
+enum class ActiveScreen {
+    TAB,
+    SETTINGS,
+    THEME_MANAGER
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainContainer(
@@ -72,6 +82,7 @@ fun MainContainer(
     modifier: Modifier = Modifier
 ) {
     var currentTab by remember { mutableStateOf(NavigationTab.FEED) }
+    var activeScreen by remember { mutableStateOf(ActiveScreen.TAB) }
     var initialWebPlatform by remember { mutableStateOf(SocialPlatform.TELEGRAM) }
 
     val messages by viewModel.messages.collectAsState()
@@ -79,55 +90,82 @@ fun MainContainer(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(com.example.ui.theme.BentoPillActive)
+            if (activeScreen == ActiveScreen.TAB) {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                            ) {
+                                Text(
+                                    text = "S",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontSize = 18.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Social Hub",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "14 platform terhubung • Smart Routing v2",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { activeScreen = ActiveScreen.THEME_MANAGER },
+                            modifier = Modifier.testTag("topbar_theme_icon")
                         ) {
-                            Text(
-                                text = "S",
-                                fontWeight = FontWeight.ExtraBold,
-                                color = com.example.ui.theme.BentoPrimaryAccent,
-                                fontSize = 18.sp
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = "Theme Manager",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Social Hub",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "6 platform terhubung • Bento Grid",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        IconButton(
+                            onClick = { activeScreen = ActiveScreen.SETTINGS },
+                            modifier = Modifier.testTag("topbar_settings_icon")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Pengaturan",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = com.example.ui.theme.BentoCanvas
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
-            )
+            }
         },
         bottomBar = {
             NavigationBar(
-                containerColor = com.example.ui.theme.BentoSurface,
-                tonalElevation = 0.dp,
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp,
                 modifier = Modifier.testTag("main_navigation_bar")
             ) {
                 NavigationTab.entries.forEach { tab ->
-                    val isSelected = currentTab == tab
+                    val isSelected = activeScreen == ActiveScreen.TAB && currentTab == tab
                     NavigationBarItem(
                         selected = isSelected,
-                        onClick = { currentTab = tab },
+                        onClick = {
+                            activeScreen = ActiveScreen.TAB
+                            currentTab = tab
+                        },
                         icon = {
                             if (tab == NavigationTab.INBOX && unreadCount > 0) {
                                 BadgedBox(
@@ -157,11 +195,11 @@ fun MainContainer(
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = com.example.ui.theme.BentoPrimaryAccent,
-                            selectedTextColor = com.example.ui.theme.BentoPrimaryAccent,
-                            indicatorColor = com.example.ui.theme.BentoPillActive,
-                            unselectedIconColor = com.example.ui.theme.BentoTextSecondary,
-                            unselectedTextColor = com.example.ui.theme.BentoTextSecondary
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         modifier = Modifier.testTag("nav_item_${tab.route}")
                     )
@@ -176,32 +214,52 @@ fun MainContainer(
                 .padding(innerPadding)
         ) {
             Crossfade(
-                targetState = currentTab,
+                targetState = activeScreen,
                 label = "MainCrossfade"
-            ) { tab ->
-                when (tab) {
-                    NavigationTab.FEED -> DashboardScreen(
+            ) { screen ->
+                when (screen) {
+                    ActiveScreen.THEME_MANAGER -> ThemeManagerScreen(
                         viewModel = viewModel,
-                        onOpenWeb = { platform ->
-                            initialWebPlatform = platform
-                            currentTab = NavigationTab.WEB
-                        },
-                        onNavigateToComposer = {
-                            currentTab = NavigationTab.COMPOSER
+                        onBack = { activeScreen = ActiveScreen.TAB }
+                    )
+                    ActiveScreen.SETTINGS -> SettingsScreen(
+                        viewModel = viewModel,
+                        onNavigateToThemeManager = { activeScreen = ActiveScreen.THEME_MANAGER }
+                    )
+                    ActiveScreen.TAB -> {
+                        when (currentTab) {
+                            NavigationTab.FEED -> DashboardScreen(
+                                viewModel = viewModel,
+                                onOpenWeb = { platform ->
+                                    initialWebPlatform = platform
+                                    activeScreen = ActiveScreen.TAB
+                                    currentTab = NavigationTab.WEB
+                                },
+                                onNavigateToComposer = {
+                                    activeScreen = ActiveScreen.TAB
+                                    currentTab = NavigationTab.COMPOSER
+                                }
+                            )
+                            NavigationTab.INBOX -> InboxScreen(
+                                viewModel = viewModel
+                            )
+                            NavigationTab.COMPOSER -> ComposerScreen(
+                                viewModel = viewModel
+                            )
+                            NavigationTab.WEB -> WebBrowserScreen(
+                                initialPlatform = initialWebPlatform,
+                                onNavigateHome = {
+                                    activeScreen = ActiveScreen.TAB
+                                    currentTab = NavigationTab.FEED
+                                }
+                            )
+                            NavigationTab.ACCOUNTS -> AccountsScreen(
+                                viewModel = viewModel,
+                                onNavigateToSettings = { activeScreen = ActiveScreen.SETTINGS },
+                                onNavigateToThemeManager = { activeScreen = ActiveScreen.THEME_MANAGER }
+                            )
                         }
-                    )
-                    NavigationTab.INBOX -> InboxScreen(
-                        viewModel = viewModel
-                    )
-                    NavigationTab.COMPOSER -> ComposerScreen(
-                        viewModel = viewModel
-                    )
-                    NavigationTab.WEB -> WebBrowserScreen(
-                        initialPlatform = initialWebPlatform
-                    )
-                    NavigationTab.ACCOUNTS -> AccountsScreen(
-                        viewModel = viewModel
-                    )
+                    }
                 }
             }
         }

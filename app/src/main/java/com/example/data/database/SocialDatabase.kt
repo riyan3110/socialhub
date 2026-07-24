@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.dao.SocialDao
 import com.example.data.entities.CrossPostEntity
+import com.example.data.entities.FavoritePlatformEntity
+import com.example.data.entities.RecentBrowsingEntity
 import com.example.data.entities.SocialAccountEntity
 import com.example.data.entities.SocialFeedEntity
 
@@ -13,9 +15,11 @@ import com.example.data.entities.SocialFeedEntity
     entities = [
         SocialFeedEntity::class,
         SocialAccountEntity::class,
-        CrossPostEntity::class
+        CrossPostEntity::class,
+        FavoritePlatformEntity::class,
+        RecentBrowsingEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class SocialDatabase : RoomDatabase() {

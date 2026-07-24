@@ -10,52 +10,57 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-
-private val DarkColorScheme = darkColorScheme(
-    primary = BentoPillActive,
-    onPrimary = BentoPrimaryAccent,
-    secondary = BentoXContainer,
-    onSecondary = BentoXText,
-    tertiary = BentoInstagramContainer,
-    background = Color(0xFF141218),
-    surface = Color(0xFF211F26),
-    onBackground = Color(0xFFE6E0E9),
-    onSurface = Color(0xFFE6E0E9),
-    surfaceVariant = Color(0xFF49454F),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    primaryContainer = Color(0xFF3B2D54),
-    onPrimaryContainer = BentoPillActive
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = BentoPrimaryAccent,
-    onPrimary = Color.White,
-    secondary = BentoWhatsAppText,
-    onSecondary = Color.White,
-    tertiary = BentoInstagramText,
-    background = BentoCanvas,
-    surface = Color.White,
-    onBackground = BentoTextPrimary,
-    onSurface = BentoTextPrimary,
-    surfaceVariant = BentoSurface,
-    onSurfaceVariant = BentoTextSecondary,
-    primaryContainer = BentoPillActive,
-    onPrimaryContainer = BentoPrimaryAccent
-)
+import com.example.data.preferences.AccentColor
+import com.example.data.preferences.AppThemeMode
 
 @Composable
 fun SocialHubTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    accentColor: AccentColor = AccentColor.PURPLE,
+    useDynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.DARK -> true
+        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
+    val context = LocalContext.current
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
+        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> darkColorScheme(
+            primary = accentColor.primaryColor,
+            onPrimary = Color.White,
+            primaryContainer = accentColor.darkContainerColor,
+            onPrimaryContainer = accentColor.darkOnContainerColor,
+            secondary = accentColor.primaryColor,
+            onSecondary = Color.White,
+            tertiary = BentoInstagramContainer,
+            background = Color(0xFF141218),
+            surface = Color(0xFF211F26),
+            onBackground = Color(0xFFE6E0E9),
+            onSurface = Color(0xFFE6E0E9),
+            surfaceVariant = Color(0xFF36343B),
+            onSurfaceVariant = Color(0xFFCAC4D0)
+        )
+        else -> lightColorScheme(
+            primary = accentColor.primaryColor,
+            onPrimary = Color.White,
+            primaryContainer = accentColor.lightContainerColor,
+            onPrimaryContainer = accentColor.lightOnContainerColor,
+            secondary = accentColor.primaryColor,
+            onSecondary = Color.White,
+            tertiary = BentoInstagramText,
+            background = BentoCanvas,
+            surface = Color.White,
+            onBackground = BentoTextPrimary,
+            onSurface = BentoTextPrimary,
+            surfaceVariant = BentoSurface,
+            onSurfaceVariant = BentoTextSecondary
+        )
     }
 
     MaterialTheme(

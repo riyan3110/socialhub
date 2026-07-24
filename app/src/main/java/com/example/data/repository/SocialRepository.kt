@@ -3,6 +3,8 @@ package com.example.data.repository
 import com.example.data.SocialPlatform
 import com.example.data.dao.SocialDao
 import com.example.data.entities.CrossPostEntity
+import com.example.data.entities.FavoritePlatformEntity
+import com.example.data.entities.RecentBrowsingEntity
 import com.example.data.entities.SocialAccountEntity
 import com.example.data.entities.SocialFeedEntity
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +16,31 @@ class SocialRepository(private val socialDao: SocialDao) {
     val bookmarkedFeeds: Flow<List<SocialFeedEntity>> = socialDao.getBookmarkedFeeds()
     val allAccounts: Flow<List<SocialAccountEntity>> = socialDao.getAllAccounts()
     val allCrossPosts: Flow<List<CrossPostEntity>> = socialDao.getAllCrossPosts()
+    val favoritePlatforms: Flow<List<FavoritePlatformEntity>> = socialDao.getAllFavorites()
+    val recentBrowsing: Flow<List<RecentBrowsingEntity>> = socialDao.getRecentBrowsing()
+
+    suspend fun toggleFavorite(platformId: String, currentIsFavorite: Boolean) {
+        if (currentIsFavorite) {
+            socialDao.removeFavorite(platformId)
+        } else {
+            socialDao.setFavorite(FavoritePlatformEntity(platformId = platformId, isFavorite = true))
+        }
+    }
+
+    suspend fun addRecentVisit(platformId: String, title: String, url: String) {
+        socialDao.insertRecent(
+            RecentBrowsingEntity(
+                platformId = platformId,
+                title = title,
+                url = url,
+                visitedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun clearHistory() {
+        socialDao.clearRecentBrowsing()
+    }
 
     fun getFeedsByPlatform(platform: String): Flow<List<SocialFeedEntity>> {
         return socialDao.getFeedsByPlatform(platform)

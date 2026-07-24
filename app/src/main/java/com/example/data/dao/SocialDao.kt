@@ -6,6 +6,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.data.entities.CrossPostEntity
+import com.example.data.entities.FavoritePlatformEntity
+import com.example.data.entities.RecentBrowsingEntity
 import com.example.data.entities.SocialAccountEntity
 import com.example.data.entities.SocialFeedEntity
 import kotlinx.coroutines.flow.Flow
@@ -71,4 +73,24 @@ interface SocialDao {
 
     @Query("DELETE FROM cross_posts WHERE id = :id")
     suspend fun deleteCrossPost(id: Long)
+
+    // Favorites
+    @Query("SELECT * FROM favorite_platforms")
+    fun getAllFavorites(): Flow<List<FavoritePlatformEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setFavorite(favorite: FavoritePlatformEntity)
+
+    @Query("DELETE FROM favorite_platforms WHERE platformId = :platformId")
+    suspend fun removeFavorite(platformId: String)
+
+    // Recent Browsing History
+    @Query("SELECT * FROM recent_browsing ORDER BY visitedAt DESC LIMIT 20")
+    fun getRecentBrowsing(): Flow<List<RecentBrowsingEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecent(recent: RecentBrowsingEntity): Long
+
+    @Query("DELETE FROM recent_browsing")
+    suspend fun clearRecentBrowsing()
 }

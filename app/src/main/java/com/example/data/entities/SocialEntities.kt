@@ -47,3 +47,19 @@ data class CrossPostEntity(
     val status: String = "PUBLISHED", // DRAFT, SCHEDULED, PUBLISHED
     val createdAt: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "favorite_platforms")
+data class FavoritePlatformEntity(
+    @PrimaryKey val platformId: String,
+    val isFavorite: Boolean = true,
+    val addedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "recent_browsing")
+data class RecentBrowsingEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val platformId: String,
+    val title: String,
+    val url: String,
+    val visitedAt: Long = System.currentTimeMillis()
+)
