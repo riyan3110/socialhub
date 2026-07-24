@@ -41,9 +41,6 @@ jobs:
           preserve = {
               '.github/workflows/build-apk.yml',
               '.github/workflows/apply-uploaded-zip.yml',
-              'project-update.part01.b64',
-              'project-update.part02.b64',
-              'project-update.part03.b64',
               'project-update.ready',
               'gradle/wrapper/gradle-wrapper.jar',
               'app/src/main/res/mipmap-hdpi/ic_launcher.webp',
@@ -61,7 +58,7 @@ jobs:
 
           tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
           for rel in tracked:
-              if not rel or rel in preserve:
+              if not rel or rel in preserve or rel.startswith('project-update.part'):
                   continue
               p = root / rel
               if p.is_file() or p.is_symlink():
@@ -75,14 +72,10 @@ jobs:
               target.parent.mkdir(parents=True, exist_ok=True)
               shutil.copy2(source, target)
 
-          for temp in [
-              root / 'project-update.part01.b64',
-              root / 'project-update.part02.b64',
-              root / 'project-update.part03.b64',
-              root / 'project-update.ready',
-              root / '.github/workflows/apply-uploaded-zip.yml',
-          ]:
+          for temp in root.glob('project-update.part*.b64'):
               temp.unlink(missing_ok=True)
+          (root / 'project-update.ready').unlink(missing_ok=True)
+          (root / '.github/workflows/apply-uploaded-zip.yml').unlink(missing_ok=True)
           PY
 
       - name: Commit replaced project
