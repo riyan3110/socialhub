@@ -1,0 +1,148 @@
+name: Build Latest SocialHub APK
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ci-trigger.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: socialhub-latest-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Apply uploaded ZIP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          parts=()
+          for n in $(seq -w 1 6); do
+            part="socialhub-latest.part${n}.b64"
+            test -s "$part"
+            parts+=("$part")
+          done
+
+          cat "${parts[@]}" | tr -d '\r\n' | base64 --decode > /tmp/socialhub-latest.tar.gz
+          gzip -t /tmp/socialhub-latest.tar.gz
+          tar -xzf /tmp/socialhub-latest.tar.gz -C .
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('app/build.gradle.kts')
+          text = path.read_text()
+          text = re.sub(
+              r'\n\s*create\("debugConfig"\)\s*\{.*?\n\s*\}',
+              '',
+              text,
+              flags=re.S,
+          )
+          text = text.replace(
+              'debug { signingConfig = signingConfigs.getByName("debugConfig") }',
+              'debug { isDebuggable = true }',
+          )
+          if 'debugConfig' in text:
+              raise RuntimeError('debugConfig masih tersisa')
+          path.write_text(text)
+          PY
+
+          unzip -t gradle/wrapper/gradle-wrapper.jar >/dev/null
+          chmod +x gradlew
+
+      - name: Create environment file
+        run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+
+      - name: Build APK and capture result
+        id: apk_build
+        shell: bash
+        run: |
+          set +e
+          ./gradlew assembleDebug --stacktrace --no-daemon > build.log 2>&1
+          code=$?
+          cat build.log
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Save build failure for repair
+        if: steps.apk_build.outputs.code != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tail -n 900 build.log > ci-build-error.log
+          cat > build-status.json <<EOF
+          {
+            "status": "build_failed",
+            "run_id": "${{ github.run_id }}",
+            "run_number": "${{ github.run_number }}"
+          }
+          EOF
+          rm -f .env
+          rm -f socialhub-latest.part*.b64 socialhub-patch.part*.b64
+          rm -f project-update.part*.b64 project-update.ready
+          rm -f __tree_probe__.txt probe-tree.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "CI: save SocialHub build error" || true
+          git push origin HEAD:master
+          exit 1
+
+      - name: Publish installable APK
+        if: steps.apk_build.outputs.code == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p releases
+          cp app/build/outputs/apk/debug/app-debug.apk releases/SocialHub-debug.apk
+          sha256sum releases/SocialHub-debug.apk > releases/SocialHub-debug.sha256
+          cat > build-status.json <<EOF
+          {
+            "status": "success",
+            "run_id": "${{ github.run_id }}",
+            "run_number": "${{ github.run_number }}",
+            "apk_path": "releases/SocialHub-debug.apk",
+            "artifact": "SocialHub-debug"
+          }
+          EOF
+          rm -f .env build.log ci-build-error.log
+          rm -f socialhub-latest.part*.b64 socialhub-patch.part*.b64
+          rm -f project-update.part*.b64 project-update.ready
+          rm -f __tree_probe__.txt probe-tree.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Build: publish installable SocialHub APK" || true
+          git push origin HEAD:master
+
+      - name: Upload APK artifact
+        if: steps.apk_build.outputs.code == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SocialHub-debug
+          path: releases/SocialHub-debug.apk
+          if-no-files-found: error
