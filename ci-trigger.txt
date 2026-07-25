@@ -1,2 +1,0 @@
-Build latest SocialHub APK from uploaded ZIP.
-Trigger attempt: 2

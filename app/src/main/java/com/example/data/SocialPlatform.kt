@@ -152,7 +152,7 @@ enum class SocialPlatform(
         bentoTextColor = BentoTikTokText,
         webUrl = "https://www.tiktok.com",
         iconName = "Videocam",
-        useCustomTabs = true,
+        useCustomTabs = false,
         category = "Social",
         description = "Short-form video content & trending sound"
     ),
@@ -167,7 +167,7 @@ enum class SocialPlatform(
         bentoTextColor = BentoWhatsAppText,
         webUrl = "https://web.whatsapp.com",
         iconName = "Chat",
-        useCustomTabs = true,
+        useCustomTabs = false,
         category = "Messaging",
         description = "Simple, reliable private messaging"
     ),
@@ -182,7 +182,7 @@ enum class SocialPlatform(
         bentoTextColor = BentoFacebookText,
         webUrl = "https://m.facebook.com",
         iconName = "ThumbUp",
-        useCustomTabs = true,
+        useCustomTabs = false,
         category = "Social",
         description = "Connect with friends, groups, & marketplace"
     ),
@@ -197,7 +197,7 @@ enum class SocialPlatform(
         bentoTextColor = BentoMessengerText,
         webUrl = "https://www.messenger.com",
         iconName = "QuestionAnswer",
-        useCustomTabs = true,
+        useCustomTabs = false,
         category = "Messaging",
         description = "Instant chat and video calling"
     ),
@@ -212,7 +212,7 @@ enum class SocialPlatform(
         bentoTextColor = BentoInstagramText,
         webUrl = "https://www.instagram.com",
         iconName = "CameraAlt",
-        useCustomTabs = true,
+        useCustomTabs = false,
         category = "Social",
         description = "Photos, reels, stories, and creator posts"
     ),
@@ -227,7 +227,7 @@ enum class SocialPlatform(
         bentoTextColor = BentoGoogleText,
         webUrl = "https://accounts.google.com",
         iconName = "AccountCircle",
-        useCustomTabs = true,
+        useCustomTabs = false,
         category = "Professional",
         description = "Secure Google Accounts & OAuth portal"
     );

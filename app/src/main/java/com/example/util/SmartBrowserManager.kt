@@ -8,34 +8,11 @@ import com.example.data.SocialPlatform
 object SmartBrowserManager {
 
     /**
-     * Determines whether a given URL or platform should automatically open in Chrome Custom Tabs
-     * instead of the Embedded Modern WebView due to OAuth restrictions, bot protection,
-     * or known WebView compatibility issues.
+     * Determines whether a given URL should automatically open in Chrome Custom Tabs.
+     * Always returns false for standard social media and web pages so they remain inside Social Hub's browser.
      */
     fun shouldUseCustomTabs(url: String): Boolean {
-        val lowerUrl = url.lowercase()
-
-        // Explicit Custom Tabs domains
-        if (lowerUrl.contains("tiktok.com") ||
-            lowerUrl.contains("whatsapp.com") || lowerUrl.contains("wa.me") ||
-            lowerUrl.contains("facebook.com") || lowerUrl.contains("fb.com") ||
-            lowerUrl.contains("messenger.com") ||
-            lowerUrl.contains("accounts.google.com") ||
-            lowerUrl.contains("instagram.com")
-        ) {
-            return true
-        }
-
-        // Known WebView OAuth / Auth blocker endpoints
-        if (lowerUrl.contains("appleid.apple.com") ||
-            lowerUrl.contains("login.live.com") ||
-            lowerUrl.contains("id.twitch.tv") ||
-            lowerUrl.contains("/oauth2/authorize") ||
-            lowerUrl.contains("accounts.youtube.com")
-        ) {
-            return true
-        }
-
+        // Return false so Facebook, Instagram, TikTok, etc. stay in the embedded browser.
         return false
     }
 

@@ -6,12 +6,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Environment
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -24,21 +24,17 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -48,10 +44,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DesktopMac
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
@@ -74,7 +72,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,23 +79,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import com.example.data.SocialPlatform
 import com.example.util.CustomTabsHelper
-import com.example.util.SmartBrowserManager
+
+private const val DESKTOP_USER_AGENT =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+private const val MOBILE_USER_AGENT =
+    "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,9 +127,17 @@ fun WebBrowserScreen(
     var fileUploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     var pendingWebPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
 
+    // Persistent WebViews map to preserve session, history, DOM storage, and scroll position per platform
+    val webViewsMap = remember { mutableMapOf<SocialPlatform, WebView>() }
+    val desktopModeMap = remember { mutableMapOf<SocialPlatform, Boolean>() }
+
     // Fullscreen video view reference
     var customVideoView by remember { mutableStateOf<View?>(null) }
     var customVideoCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+
+    // Colors for secure/search icon inside composable scope
+    val searchIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
     // File Chooser Launcher for HTML5 Uploads
     val fileChooserLauncher = rememberLauncherForActivityResult(
@@ -226,18 +234,8 @@ fun WebBrowserScreen(
                 FilterChip(
                     selected = activePlatform == platform,
                     onClick = {
+                        focusManager.clearFocus()
                         activePlatform = platform
-                        currentUrl = platform.webUrl
-                        urlInputText = platform.webUrl
-                        pageTitle = platform.displayName
-
-                        SmartBrowserManager.navigateToPlatform(
-                            context = context,
-                            platform = platform,
-                            onOpenEmbeddedWebView = { targetPlatform ->
-                                webViewRef?.loadUrl(targetPlatform.webUrl)
-                            }
-                        )
                     },
                     label = { Text(platform.displayName) },
                     colors = FilterChipDefaults.filterChipColors(
@@ -270,11 +268,12 @@ fun WebBrowserScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Home,
-                            contentDescription = "Beranda"
+                            contentDescription = "Beranda",
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    // Editable URL / Search Address Bar
+                    // Editable URL / Search Address Bar (Occupies all remaining horizontal space)
                     OutlinedTextField(
                         value = urlInputText,
                         onValueChange = { urlInputText = it },
@@ -284,7 +283,7 @@ fun WebBrowserScreen(
                             Icon(
                                 imageVector = if (isHttps) Icons.Default.Lock else Icons.Default.Search,
                                 contentDescription = "Security",
-                                tint = if (isHttps) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isHttps) Color(0xFF2E7D32) else searchIconColor,
                                 modifier = Modifier.size(16.dp)
                             )
                         },
@@ -316,15 +315,14 @@ fun WebBrowserScreen(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = {
                             focusManager.clearFocus()
-                            SmartBrowserManager.navigateToUrl(
-                                context = context,
-                                url = urlInputText,
-                                brandColor = activePlatform.brandColor,
-                                onOpenEmbeddedWebView = { formattedUrl ->
-                                    currentUrl = formattedUrl
-                                    webViewRef?.loadUrl(formattedUrl)
-                                }
-                            )
+                            val formattedUrl = when {
+                                urlInputText.startsWith("http://") || urlInputText.startsWith("https://") -> urlInputText
+                                urlInputText.contains(".") && !urlInputText.contains(" ") -> "https://$urlInputText"
+                                else -> "https://www.google.com/search?q=${Uri.encode(urlInputText)}"
+                            }
+                            currentUrl = formattedUrl
+                            urlInputText = formattedUrl
+                            webViewRef?.loadUrl(formattedUrl)
                         }),
                         shape = RoundedCornerShape(20.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -333,9 +331,14 @@ fun WebBrowserScreen(
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
+                        textStyle = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = onSurfaceColor
+                        ),
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
+                            .height(42.dp)
                             .testTag("address_bar_input")
                     )
 
@@ -347,7 +350,8 @@ fun WebBrowserScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Menu Opsional"
+                                contentDescription = "Menu Opsional",
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
@@ -356,7 +360,23 @@ fun WebBrowserScreen(
                             onDismissRequest = { menuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text(if (isDesktopSite) "Situs Seluler" else "Situs Desktop") },
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Situs Desktop")
+                                        if (isDesktopSite) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Aktif",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.DesktopMac,
@@ -365,17 +385,30 @@ fun WebBrowserScreen(
                                 },
                                 onClick = {
                                     menuExpanded = false
-                                    isDesktopSite = !isDesktopSite
-                                    webViewRef?.settings?.apply {
-                                        userAgentString = if (isDesktopSite) {
-                                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                                    val newDesktop = !isDesktopSite
+                                    isDesktopSite = newDesktop
+                                    desktopModeMap[activePlatform] = newDesktop
+
+                                    webViewRef?.let { wv ->
+                                        wv.settings.userAgentString = if (newDesktop) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
+                                        wv.settings.useWideViewPort = true
+                                        wv.settings.loadWithOverviewMode = true
+
+                                        val url = wv.url ?: currentUrl
+                                        if (newDesktop && url.contains("m.facebook.com")) {
+                                            val desktopFbUrl = url.replace("m.facebook.com", "www.facebook.com")
+                                            currentUrl = desktopFbUrl
+                                            urlInputText = desktopFbUrl
+                                            wv.loadUrl(desktopFbUrl)
+                                        } else if (!newDesktop && url.contains("www.facebook.com")) {
+                                            val mobileFbUrl = url.replace("www.facebook.com", "m.facebook.com")
+                                            currentUrl = mobileFbUrl
+                                            urlInputText = mobileFbUrl
+                                            wv.loadUrl(mobileFbUrl)
                                         } else {
-                                            "Mozilla/5.0 (Linux; Android 16; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                                            wv.reload()
                                         }
-                                        useWideViewPort = isDesktopSite
-                                        loadWithOverviewMode = isDesktopSite
                                     }
-                                    webViewRef?.reload()
                                 }
                             )
 
@@ -394,6 +427,25 @@ fun WebBrowserScreen(
                                         url = currentUrl,
                                         toolbarColor = activePlatform.brandColor
                                     )
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Buka di Aplikasi Eksternal") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Launch,
+                                        contentDescription = "External App"
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Tidak dapat membuka aplikasi eksternal", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             )
 
@@ -451,7 +503,7 @@ fun WebBrowserScreen(
                     }
                 }
 
-                // Sub Navigation Controls (Back, Forward, Refresh, Security Title)
+                // Sub Navigation Controls (Back, Forward, Refresh, Title)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -509,7 +561,7 @@ fun WebBrowserScreen(
             )
         }
 
-        // Pull to Refresh Box wrapping Modern WebView
+        // Pull to Refresh Box wrapping Multi-WebView persistent container
         PullToRefreshBox(
             isRefreshing = isLoading && loadingProgress < 20,
             onRefresh = { webViewRef?.reload() },
@@ -517,179 +569,420 @@ fun WebBrowserScreen(
         ) {
             AndroidView(
                 factory = { ctx ->
-                    WebView(ctx).apply {
-                        // Hardware acceleration & performance settings
-                        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                    FrameLayout(ctx).apply {
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
 
-                        settings.apply {
-                            javaScriptEnabled = true
-                            domStorageEnabled = true
-                            databaseEnabled = true
-                            allowFileAccess = true
-                            allowContentAccess = true
-                            javaScriptCanOpenWindowsAutomatically = true
-                            setSupportMultipleWindows(true)
-                            useWideViewPort = true
-                            loadWithOverviewMode = true
-                            builtInZoomControls = true
-                            displayZoomControls = false
-                            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                            userAgentString = "Mozilla/5.0 (Linux; Android 16; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-                        }
+                        // Helper function to create fully configured WebView instance
+                        fun createWebViewForPlatform(platform: SocialPlatform, initialUrlToLoad: String): WebView {
+                            return WebView(ctx).apply {
+                                layoutParams = FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
-                        // Enable Cookie Sync
-                        val currentWebView = this
-                        CookieManager.getInstance().apply {
-                            setAcceptCookie(true)
-                            setAcceptThirdPartyCookies(currentWebView, true)
-                        }
+                                val isDesktop = desktopModeMap[platform] ?: false
 
-                        // Force Dark mode if Android theme supports it
-                        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-                            WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_AUTO)
-                        }
-
-                        // Download Support using Android DownloadManager
-                        setDownloadListener { url, userAgent, contentDisposition, mimetype, contentLength ->
-                            try {
-                                val request = DownloadManager.Request(Uri.parse(url)).apply {
-                                    setMimeType(mimetype)
-                                    addRequestHeader("User-Agent", userAgent)
-                                    addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url))
-                                    setTitle("SocialHub Download")
-                                    setDescription("Mengunduh berkas...")
-                                    setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                                    setDestinationInExternalPublicDir(
-                                        Environment.DIRECTORY_DOWNLOADS,
-                                        URLUtil.guessFileName(url, contentDisposition, mimetype)
-                                    )
+                                settings.apply {
+                                    javaScriptEnabled = true
+                                    domStorageEnabled = true
+                                    @Suppress("DEPRECATION")
+                                    databaseEnabled = true
+                                    allowFileAccess = true
+                                    allowContentAccess = true
+                                    javaScriptCanOpenWindowsAutomatically = true
+                                    setSupportMultipleWindows(true)
+                                    useWideViewPort = true
+                                    loadWithOverviewMode = true
+                                    builtInZoomControls = true
+                                    displayZoomControls = false
+                                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                    mediaPlaybackRequiresUserGesture = false
+                                    userAgentString = if (isDesktop) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
                                 }
-                                val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                                dm.enqueue(request)
-                                Toast.makeText(ctx, "Proses unduh dimulai...", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Toast.makeText(ctx, "Gagal mengunduh: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
 
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                isLoading = true
-                                url?.let {
-                                    currentUrl = it
-                                    urlInputText = it
+                                val cookieMgr = CookieManager.getInstance()
+                                cookieMgr.setAcceptCookie(true)
+                                cookieMgr.setAcceptThirdPartyCookies(this, true)
+
+                                if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                                    WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_AUTO)
                                 }
-                                canGoBack = view?.canGoBack() ?: false
-                                canGoForward = view?.canGoForward() ?: false
-                            }
 
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                isLoading = false
-                                canGoBack = view?.canGoBack() ?: false
-                                canGoForward = view?.canGoForward() ?: false
-                                pageTitle = view?.title ?: activePlatform.displayName
-                                CookieManager.getInstance().flush()
-                            }
-
-                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                val targetUrl = request?.url?.toString() ?: return false
-
-                                // Smart Routing: check if URL requires Chrome Custom Tabs
-                                if (SmartBrowserManager.shouldUseCustomTabs(targetUrl)) {
-                                    CustomTabsHelper.launchCustomTab(
-                                        context = ctx,
-                                        url = targetUrl,
-                                        toolbarColor = activePlatform.brandColor
-                                    )
-                                    return true
-                                }
-                                return false
-                            }
-                        }
-
-                        webChromeClient = object : WebChromeClient() {
-                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                loadingProgress = newProgress
-                                if (newProgress == 100) isLoading = false
-                            }
-
-                            override fun onReceivedTitle(view: WebView?, title: String?) {
-                                title?.let { pageTitle = it }
-                            }
-
-                            // Fullscreen HTML5 Video Support
-                            override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-                                customVideoView = view
-                                customVideoCallback = callback
-                            }
-
-                            override fun onHideCustomView() {
-                                customVideoCallback?.onCustomViewHidden()
-                                customVideoView = null
-                                customVideoCallback = null
-                            }
-
-                            // Upload Support (File/Image Chooser)
-                            override fun onShowFileChooser(
-                                webView: WebView?,
-                                filePathCallback: ValueCallback<Array<Uri>>?,
-                                fileChooserParams: FileChooserParams?
-                            ): Boolean {
-                                fileUploadCallback?.onReceiveValue(null)
-                                fileUploadCallback = filePathCallback
-                                fileChooserLauncher.launch("*/*")
-                                return true
-                            }
-
-                            // Camera & Audio Permission Requests
-                            override fun onPermissionRequest(request: PermissionRequest?) {
-                                request?.let { req ->
-                                    val neededPermissions = mutableListOf<String>()
-                                    if (req.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
-                                        neededPermissions.add(Manifest.permission.CAMERA)
-                                    }
-                                    if (req.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
-                                        neededPermissions.add(Manifest.permission.RECORD_AUDIO)
-                                    }
-
-                                    if (neededPermissions.isNotEmpty()) {
-                                        pendingWebPermissionRequest = req
-                                        permissionLauncher.launch(neededPermissions.toTypedArray())
-                                    } else {
-                                        req.grant(req.resources)
-                                    }
-                                }
-                            }
-
-                            // Multiple Window popup handling
-                            override fun onCreateWindow(
-                                view: WebView?,
-                                isDialog: Boolean,
-                                isUserGesture: Boolean,
-                                resultMsg: android.os.Message?
-                            ): Boolean {
-                                val newWebView = WebView(ctx)
-                                newWebView.webViewClient = object : WebViewClient() {
-                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                        request?.url?.toString()?.let { popupUrl ->
-                                            view?.loadUrl(popupUrl)
+                                setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
+                                    try {
+                                        val request = DownloadManager.Request(Uri.parse(url)).apply {
+                                            setMimeType(mimetype)
+                                            addRequestHeader("User-Agent", userAgent)
+                                            addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url) ?: "")
+                                            setTitle("SocialHub Download")
+                                            setDescription("Mengunduh berkas...")
+                                            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                                            setDestinationInExternalPublicDir(
+                                                Environment.DIRECTORY_DOWNLOADS,
+                                                URLUtil.guessFileName(url, contentDisposition, mimetype)
+                                            )
                                         }
+                                        val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                        dm.enqueue(request)
+                                        Toast.makeText(ctx, "Proses unduh dimulai...", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "Gagal mengunduh: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+
+                                webViewClient = object : WebViewClient() {
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                        if (activePlatform == platform) {
+                                            isLoading = true
+                                            url?.let {
+                                                currentUrl = it
+                                                urlInputText = it
+                                            }
+                                            canGoBack = view?.canGoBack() ?: false
+                                            canGoForward = view?.canGoForward() ?: false
+                                        }
+                                    }
+
+                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                        if (activePlatform == platform) {
+                                            isLoading = false
+                                            canGoBack = view?.canGoBack() ?: false
+                                            canGoForward = view?.canGoForward() ?: false
+                                            pageTitle = view?.title ?: platform.displayName
+                                        }
+                                        CookieManager.getInstance().flush()
+                                    }
+
+                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                        val url = request?.url?.toString() ?: return false
+                                        val scheme = request?.url?.scheme?.lowercase()
+
+                                        if (scheme != null && scheme != "http" && scheme != "https" && scheme != "about" && scheme != "javascript") {
+                                            if (scheme == "intent") {
+                                                try {
+                                                    val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                                                    val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                                                    if (!fallbackUrl.isNullOrEmpty()) {
+                                                        view?.loadUrl(fallbackUrl)
+                                                        return true
+                                                    }
+                                                } catch (_: Exception) {}
+                                            }
+                                            // Do NOT automatically launch external native apps for fb://, instagram://, tiktok://, etc.
+                                            return true
+                                        }
+                                        return false
+                                    }
+                                }
+
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                        if (activePlatform == platform) {
+                                            loadingProgress = newProgress
+                                            if (newProgress == 100) isLoading = false
+                                        }
+                                    }
+
+                                    override fun onReceivedTitle(view: WebView?, title: String?) {
+                                        if (activePlatform == platform && title != null) {
+                                            pageTitle = title
+                                        }
+                                    }
+
+                                    override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                                        customVideoView = view
+                                        customVideoCallback = callback
+                                    }
+
+                                    override fun onHideCustomView() {
+                                        customVideoCallback?.onCustomViewHidden()
+                                        customVideoView = null
+                                        customVideoCallback = null
+                                    }
+
+                                    override fun onShowFileChooser(
+                                        webView: WebView?,
+                                        filePathCallback: ValueCallback<Array<Uri>>?,
+                                        fileChooserParams: FileChooserParams?
+                                    ): Boolean {
+                                        fileUploadCallback?.onReceiveValue(null)
+                                        fileUploadCallback = filePathCallback
+                                        fileChooserLauncher.launch("*/*")
+                                        return true
+                                    }
+
+                                    override fun onPermissionRequest(request: PermissionRequest?) {
+                                        request?.let { req ->
+                                            val neededPermissions = mutableListOf<String>()
+                                            if (req.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
+                                                neededPermissions.add(Manifest.permission.CAMERA)
+                                            }
+                                            if (req.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                                                neededPermissions.add(Manifest.permission.RECORD_AUDIO)
+                                            }
+
+                                            if (neededPermissions.isNotEmpty()) {
+                                                pendingWebPermissionRequest = req
+                                                permissionLauncher.launch(neededPermissions.toTypedArray())
+                                            } else {
+                                                req.grant(req.resources)
+                                            }
+                                        }
+                                    }
+
+                                    override fun onGeolocationPermissionsShowPrompt(
+                                        origin: String?,
+                                        callback: GeolocationPermissions.Callback?
+                                    ) {
+                                        callback?.invoke(origin, true, false)
+                                    }
+
+                                    override fun onCreateWindow(
+                                        view: WebView?,
+                                        isDialog: Boolean,
+                                        isUserGesture: Boolean,
+                                        resultMsg: android.os.Message?
+                                    ): Boolean {
+                                        val newWebView = WebView(ctx)
+                                        newWebView.settings.javaScriptEnabled = true
+                                        newWebView.webViewClient = object : WebViewClient() {
+                                            override fun shouldOverrideUrlLoading(v: WebView?, req: WebResourceRequest?): Boolean {
+                                                req?.url?.toString()?.let { popupUrl ->
+                                                    view?.loadUrl(popupUrl)
+                                                }
+                                                return true
+                                            }
+                                        }
+                                        val transport = resultMsg?.obj as? WebView.WebViewTransport
+                                        transport?.webView = newWebView
+                                        resultMsg?.sendToTarget()
                                         return true
                                     }
                                 }
-                                val transport = resultMsg?.obj as? WebView.WebViewTransport
-                                transport?.webView = newWebView
-                                resultMsg?.sendToTarget()
-                                return true
+
+                                loadUrl(initialUrlToLoad)
                             }
                         }
 
-                        loadUrl(currentUrl)
-                        webViewRef = this
+                        val initialWV = createWebViewForPlatform(activePlatform, currentUrl)
+                        webViewsMap[activePlatform] = initialWV
+                        addView(initialWV)
+                        webViewRef = initialWV
                     }
                 },
-                update = { webView ->
-                    webViewRef = webView
+                update = { container ->
+                    // Hide all inactive WebViews
+                    for ((p, wv) in webViewsMap) {
+                        wv.visibility = if (p == activePlatform) View.VISIBLE else View.GONE
+                    }
+
+                    // Retrieve or create WebView for activePlatform
+                    var activeWV = webViewsMap[activePlatform]
+                    if (activeWV == null) {
+                        val targetUrl = if (activePlatform == initialPlatform && initialUrl != null) initialUrl else activePlatform.webUrl
+                        activeWV = WebView(container.context).apply {
+                            layoutParams = FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
+                            val isDesktop = desktopModeMap[activePlatform] ?: false
+
+                            settings.apply {
+                                javaScriptEnabled = true
+                                domStorageEnabled = true
+                                @Suppress("DEPRECATION")
+                                databaseEnabled = true
+                                allowFileAccess = true
+                                allowContentAccess = true
+                                javaScriptCanOpenWindowsAutomatically = true
+                                setSupportMultipleWindows(true)
+                                useWideViewPort = true
+                                loadWithOverviewMode = true
+                                builtInZoomControls = true
+                                displayZoomControls = false
+                                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                mediaPlaybackRequiresUserGesture = false
+                                userAgentString = if (isDesktop) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
+                            }
+
+                            val cookieMgr = CookieManager.getInstance()
+                            cookieMgr.setAcceptCookie(true)
+                            cookieMgr.setAcceptThirdPartyCookies(this, true)
+
+                            if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                                WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_AUTO)
+                            }
+
+                            setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
+                                try {
+                                    val request = DownloadManager.Request(Uri.parse(url)).apply {
+                                        setMimeType(mimetype)
+                                        addRequestHeader("User-Agent", userAgent)
+                                        addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url) ?: "")
+                                        setTitle("SocialHub Download")
+                                        setDescription("Mengunduh berkas...")
+                                        setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                                        setDestinationInExternalPublicDir(
+                                            Environment.DIRECTORY_DOWNLOADS,
+                                            URLUtil.guessFileName(url, contentDisposition, mimetype)
+                                        )
+                                    }
+                                    val dm = container.context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                    dm.enqueue(request)
+                                    Toast.makeText(container.context, "Proses unduh dimulai...", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Toast.makeText(container.context, "Gagal mengunduh: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                    if (activePlatform == activePlatform) {
+                                        isLoading = true
+                                        url?.let {
+                                            currentUrl = it
+                                            urlInputText = it
+                                        }
+                                        canGoBack = view?.canGoBack() ?: false
+                                        canGoForward = view?.canGoForward() ?: false
+                                    }
+                                }
+
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    if (activePlatform == activePlatform) {
+                                        isLoading = false
+                                        canGoBack = view?.canGoBack() ?: false
+                                        canGoForward = view?.canGoForward() ?: false
+                                        pageTitle = view?.title ?: activePlatform.displayName
+                                    }
+                                    CookieManager.getInstance().flush()
+                                }
+
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    val url = request?.url?.toString() ?: return false
+                                    val scheme = request?.url?.scheme?.lowercase()
+
+                                    if (scheme != null && scheme != "http" && scheme != "https" && scheme != "about" && scheme != "javascript") {
+                                        if (scheme == "intent") {
+                                            try {
+                                                val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                                                val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                                                if (!fallbackUrl.isNullOrEmpty()) {
+                                                    view?.loadUrl(fallbackUrl)
+                                                    return true
+                                                }
+                                            } catch (_: Exception) {}
+                                        }
+                                        return true
+                                    }
+                                    return false
+                                }
+                            }
+
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                    loadingProgress = newProgress
+                                    if (newProgress == 100) isLoading = false
+                                }
+
+                                override fun onReceivedTitle(view: WebView?, title: String?) {
+                                    if (title != null) pageTitle = title
+                                }
+
+                                override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                                    customVideoView = view
+                                    customVideoCallback = callback
+                                }
+
+                                override fun onHideCustomView() {
+                                    customVideoCallback?.onCustomViewHidden()
+                                    customVideoView = null
+                                    customVideoCallback = null
+                                }
+
+                                override fun onShowFileChooser(
+                                    webView: WebView?,
+                                    filePathCallback: ValueCallback<Array<Uri>>?,
+                                    fileChooserParams: FileChooserParams?
+                                ): Boolean {
+                                    fileUploadCallback?.onReceiveValue(null)
+                                    fileUploadCallback = filePathCallback
+                                    fileChooserLauncher.launch("*/*")
+                                    return true
+                                }
+
+                                override fun onPermissionRequest(request: PermissionRequest?) {
+                                    request?.let { req ->
+                                        val neededPermissions = mutableListOf<String>()
+                                        if (req.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
+                                            neededPermissions.add(Manifest.permission.CAMERA)
+                                        }
+                                        if (req.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                                            neededPermissions.add(Manifest.permission.RECORD_AUDIO)
+                                        }
+
+                                        if (neededPermissions.isNotEmpty()) {
+                                            pendingWebPermissionRequest = req
+                                            permissionLauncher.launch(neededPermissions.toTypedArray())
+                                        } else {
+                                            req.grant(req.resources)
+                                        }
+                                    }
+                                }
+
+                                override fun onGeolocationPermissionsShowPrompt(
+                                    origin: String?,
+                                    callback: GeolocationPermissions.Callback?
+                                ) {
+                                    callback?.invoke(origin, true, false)
+                                }
+
+                                override fun onCreateWindow(
+                                    view: WebView?,
+                                    isDialog: Boolean,
+                                    isUserGesture: Boolean,
+                                    resultMsg: android.os.Message?
+                                ): Boolean {
+                                    val newWebView = WebView(container.context)
+                                    newWebView.settings.javaScriptEnabled = true
+                                    newWebView.webViewClient = object : WebViewClient() {
+                                        override fun shouldOverrideUrlLoading(v: WebView?, req: WebResourceRequest?): Boolean {
+                                            req?.url?.toString()?.let { popupUrl ->
+                                                view?.loadUrl(popupUrl)
+                                            }
+                                            return true
+                                        }
+                                    }
+                                    val transport = resultMsg?.obj as? WebView.WebViewTransport
+                                    transport?.webView = newWebView
+                                    resultMsg?.sendToTarget()
+                                    return true
+                                }
+                            }
+
+                            loadUrl(targetUrl)
+                        }
+                        webViewsMap[activePlatform] = activeWV
+                        container.addView(activeWV)
+                    }
+
+                    activeWV.visibility = View.VISIBLE
+                    webViewRef = activeWV
+
+                    // Sync top bar state with active WebView
+                    val wvUrl = activeWV.url ?: activePlatform.webUrl
+                    currentUrl = wvUrl
+                    urlInputText = wvUrl
+                    canGoBack = activeWV.canGoBack()
+                    canGoForward = activeWV.canGoForward()
+                    pageTitle = activeWV.title ?: activePlatform.displayName
+                    isDesktopSite = desktopModeMap[activePlatform] ?: false
                 },
                 modifier = Modifier
                     .fillMaxSize()
@@ -698,15 +991,16 @@ fun WebBrowserScreen(
         }
     }
 
-    // Clean up WebView on disposal
+    // Clean up WebViews when WebBrowserScreen is disposed
     DisposableEffect(Unit) {
         onDispose {
-            webViewRef?.apply {
-                stopLoading()
-                clearHistory()
-                removeAllViews()
-                destroy()
+            webViewsMap.values.forEach { webView ->
+                webView.stopLoading()
+                webView.clearHistory()
+                webView.removeAllViews()
+                webView.destroy()
             }
+            webViewsMap.clear()
             webViewRef = null
         }
     }
