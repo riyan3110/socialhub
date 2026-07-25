@@ -1,2 +1,2 @@
 Build latest SocialHub APK from uploaded ZIP.
-Trigger: 2026-07-25T01:30:00Z
+Trigger attempt: 2
