@@ -2,9 +2,9 @@ name: Build APK
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -23,9 +26,38 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Create .env
+      - name: Apply latest Social Hub files
+        shell: bash
         run: |
-          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+          set -euo pipefail
+          test -f socialhub-patch.part01.b64
+          cat socialhub-patch.part*.b64 | base64 --decode > /tmp/socialhub-patch.tar.gz
+          tar -tzf /tmp/socialhub-patch.tar.gz
+          tar -xzf /tmp/socialhub-patch.tar.gz -C .
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          gradle_file = Path('app/build.gradle.kts')
+          text = gradle_file.read_text()
+          text = re.sub(
+              r'\n\s*create\("debugConfig"\)\s*\{.*?\n\s*\}',
+              '',
+              text,
+              flags=re.S,
+          )
+          text = text.replace(
+              'debug { signingConfig = signingConfigs.getByName("debugConfig") }',
+              'debug { isDebuggable = true }',
+          )
+          if 'debugConfig' in text:
+              raise RuntimeError('debugConfig masih tersisa di app/build.gradle.kts')
+          gradle_file.write_text(text)
+          PY
+
+      - name: Create .env
+        run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
 
       - name: Grant execute permission
         run: chmod +x ./gradlew
@@ -39,3 +71,21 @@ jobs:
           name: SocialHub-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Save updated project
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .env
+          rm -f socialhub-patch.part*.b64
+          rm -f project-update.part*.b64 project-update.ready
+          rm -f .github/workflows/apply-uploaded-zip.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No project changes to commit"
+          else
+            git commit -m "Update Social Hub from latest ZIP"
+            git push origin HEAD:master
+          fi
