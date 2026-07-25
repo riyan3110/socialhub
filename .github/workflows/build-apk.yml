@@ -43,16 +43,16 @@ jobs:
           {
             set -euo pipefail
             parts=()
-            for n in $(seq -w 1 12); do
-              part="socialhub-patch.part${n}.b64"
+            for n in $(seq -w 1 6); do
+              part="socialhub-latest.part${n}.b64"
               test -s "$part"
               parts+=("$part")
             done
 
-            cat "${parts[@]}" | tr -d '\r\n' | base64 --decode > /tmp/socialhub-patch.tar.gz
-            gzip -t /tmp/socialhub-patch.tar.gz
-            tar -tzf /tmp/socialhub-patch.tar.gz
-            tar -xzf /tmp/socialhub-patch.tar.gz -C .
+            cat "${parts[@]}" | tr -d '\r\n' | base64 --decode > /tmp/socialhub-latest.tar.gz
+            gzip -t /tmp/socialhub-latest.tar.gz
+            tar -tzf /tmp/socialhub-latest.tar.gz
+            tar -xzf /tmp/socialhub-latest.tar.gz -C .
 
             python3 - <<'PY'
           from pathlib import Path
@@ -109,9 +109,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -f socialhub-latest.part*.b64
           rm -f socialhub-patch.part*.b64
           rm -f project-update.part*.b64 project-update.ready
           rm -f .github/workflows/apply-uploaded-zip.yml
+          rm -f __tree_probe__.txt probe-tree.txt
           rm -f ci-build-error.log build-status.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
