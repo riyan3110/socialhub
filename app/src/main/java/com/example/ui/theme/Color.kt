@@ -59,6 +59,10 @@ val BentoMediumContainer = Color(0xFFE3F3E8)
 val BentoMediumBorder = Color(0xFFB5E0C2)
 val BentoMediumText = Color(0xFF0D5025)
 
+val BentoYouTubeContainer = Color(0xFFFFEBEE)
+val BentoYouTubeBorder = Color(0xFFFFCDD2)
+val BentoYouTubeText = Color(0xFFC62828)
+
 val BentoMessengerContainer = Color(0xFFEBDCFF)
 val BentoMessengerBorder = Color(0xFFD5B8FF)
 val BentoMessengerText = Color(0xFF5A00A8)

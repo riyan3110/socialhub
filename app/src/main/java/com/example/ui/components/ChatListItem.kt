@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,6 +41,7 @@ import java.util.Locale
 fun ChatListItem(
     message: SocialFeedEntity,
     onReplyClick: (SocialFeedEntity) -> Unit,
+    onDeleteClick: (SocialFeedEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val platform = SocialPlatform.fromId(message.platform)
@@ -132,6 +134,25 @@ fun ChatListItem(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "Balas AI",
                     tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Delete Message Icon
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .clickable { onDeleteClick(message) }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Hapus Pesan",
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(18.dp)
                 )
             }

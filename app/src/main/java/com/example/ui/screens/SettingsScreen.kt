@@ -38,6 +38,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -73,6 +74,19 @@ fun SettingsScreen(
     var showBrowserModeDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showClearStorageDialog by remember { mutableStateOf(false) }
+
+    var aboutTapCount by remember { mutableStateOf(0) }
+    var lastTapTime by remember { mutableStateOf(0L) }
+    var showAdminPasscodeDialog by remember { mutableStateOf(false) }
+    var showAdminConfigDialog by remember { mutableStateOf(false) }
+    var adminPasscode by remember { mutableStateOf("") }
+    var passcodeError by remember { mutableStateOf(false) }
+
+    var adminGatewayUrl by remember { mutableStateOf(userSettings.gatewayUrl) }
+    var adminAuthToken by remember { mutableStateOf(userSettings.gatewayToken) }
+    var adminModel by remember { mutableStateOf(userSettings.gatewayModel) }
+    var testConnectionStatus by remember { mutableStateOf<String?>(null) }
+    var isTestingConnection by remember { mutableStateOf(false) }
 
     LazyColumn(
         contentPadding = PaddingValues(bottom = 100.dp),
@@ -461,7 +475,23 @@ fun SettingsScreen(
                 title = "Tentang Social Hub V2",
                 subtitle = "Versi 2.0.0 • Smart Routing & Multi-Platform Hub",
                 icon = Icons.Default.Info,
-                onClick = { showAboutDialog = true },
+                onClick = {
+                    val now = System.currentTimeMillis()
+                    if (now - lastTapTime < 1000) {
+                        aboutTapCount++
+                    } else {
+                        aboutTapCount = 1
+                    }
+                    lastTapTime = now
+                    if (aboutTapCount >= 5) {
+                        aboutTapCount = 0
+                        adminPasscode = ""
+                        passcodeError = false
+                        showAdminPasscodeDialog = true
+                    } else {
+                        showAboutDialog = true
+                    }
+                },
                 badgeText = "v2.0",
                 tag = "setting_item_about"
             )
@@ -603,7 +633,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Fitur Utama:\n• Smart Routing (Embedded WebView & Custom Tabs)\n• Theme Manager & Dynamic Color\n• Multi-Platform Feed & Cross Publishing\n• Asisten Gemini 2.5 Flash",
+                        text = "Fitur Utama:\n• Smart Routing (Embedded WebView & Custom Tabs)\n• Theme Manager & Dynamic Color\n• Multi-Platform Feed & Cross Publishing\n• 9Router AI Gateway Integration",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -612,6 +642,134 @@ fun SettingsScreen(
             confirmButton = {
                 Button(onClick = { showAboutDialog = false }) {
                     Text("Tutup")
+                }
+            }
+        )
+    }
+
+    // Admin Passcode Dialog
+    if (showAdminPasscodeDialog) {
+        AlertDialog(
+            onDismissRequest = { showAdminPasscodeDialog = false },
+            title = { Text("Admin Authentication") },
+            text = {
+                Column {
+                    Text("Enter admin passcode to access 9Router AI Gateway configuration:", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = adminPasscode,
+                        onValueChange = { adminPasscode = it; passcodeError = false },
+                        label = { Text("Admin Passcode") },
+                        isError = passcodeError,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (passcodeError) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Incorrect passcode. Try '9router'.", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (adminPasscode == "9router" || adminPasscode == "admin123") {
+                            showAdminPasscodeDialog = false
+                            adminGatewayUrl = userSettings.gatewayUrl
+                            adminAuthToken = userSettings.gatewayToken
+                            adminModel = userSettings.gatewayModel
+                            testConnectionStatus = null
+                            showAdminConfigDialog = true
+                        } else {
+                            passcodeError = true
+                        }
+                    }
+                ) {
+                    Text("Authenticate")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdminPasscodeDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Admin Config Dialog
+    if (showAdminConfigDialog) {
+        AlertDialog(
+            onDismissRequest = { showAdminConfigDialog = false },
+            title = { Text("9Router AI Gateway Admin Config") },
+            text = {
+                Column {
+                    Text("Configure VPS 9Router AI Gateway settings (Administrator Only):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = adminGatewayUrl,
+                        onValueChange = { adminGatewayUrl = it },
+                        label = { Text("Gateway URL") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = adminAuthToken,
+                        onValueChange = { adminAuthToken = it },
+                        label = { Text("Authentication Token (Bearer)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = adminModel,
+                        onValueChange = { adminModel = it },
+                        label = { Text("Model Name (e.g. gpt-4o)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = {
+                                isTestingConnection = true
+                                testConnectionStatus = null
+                                viewModel.testGatewayConnection(adminGatewayUrl, adminAuthToken, adminModel) { success ->
+                                    isTestingConnection = false
+                                    testConnectionStatus = if (success) "✓ Connection Successful!" else "✗ Connection Failed."
+                                }
+                            },
+                            enabled = !isTestingConnection
+                        ) {
+                            Text(if (isTestingConnection) "Testing..." else "Test Connection")
+                        }
+
+                        if (testConnectionStatus != null) {
+                            Text(
+                                text = testConnectionStatus ?: "",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (testConnectionStatus!!.startsWith("✓")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.updateGatewayConfig(adminGatewayUrl, adminAuthToken, adminModel)
+                        Toast.makeText(context, "Gateway Configuration Saved Successfully", Toast.LENGTH_SHORT).show()
+                        showAdminConfigDialog = false
+                    }
+                ) {
+                    Text("Save Configuration")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdminConfigDialog = false }) {
+                    Text("Close")
                 }
             }
         )

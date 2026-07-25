@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Tag
@@ -40,6 +41,7 @@ fun SocialBrandBadge(
     modifier: Modifier = Modifier
 ) {
     val iconVector = when (platform) {
+        SocialPlatform.YOUTUBE -> Icons.Default.PlayArrow
         SocialPlatform.TWITTER_X -> Icons.Default.Tag
         SocialPlatform.REDDIT -> Icons.Default.Forum
         SocialPlatform.DISCORD -> Icons.Default.Chat

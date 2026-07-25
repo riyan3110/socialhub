@@ -11,7 +11,7 @@ import com.example.data.entities.RecentBrowsingEntity
 import com.example.data.entities.SocialAccountEntity
 import com.example.data.entities.SocialFeedEntity
 import com.example.data.repository.SocialRepository
-import com.example.service.GeminiAssistantService
+import com.example.service.RouterGatewayService
 import com.example.data.preferences.AccentColor
 import com.example.data.preferences.AppThemeMode
 import com.example.data.preferences.PreferencesRepository
@@ -28,7 +28,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
 
     private val repository: SocialRepository
     private val preferencesRepository = PreferencesRepository(application)
-    private val geminiService = GeminiAssistantService()
+    private val routerGatewayService = RouterGatewayService()
 
     val userSettings: StateFlow<UserSettings> = preferencesRepository.userSettingsFlow
         .stateIn(
@@ -175,6 +175,12 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun deleteFeed(feedId: Long) {
+        viewModelScope.launch {
+            repository.deleteFeed(feedId)
+        }
+    }
+
     fun toggleAccountSync(accountId: Long, currentSync: Boolean) {
         viewModelScope.launch {
             repository.toggleAccountSync(accountId, currentSync)
@@ -205,8 +211,24 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             isAiSummaryLoading.value = true
             val currentFeeds = feeds.value
-            val summary = geminiService.generateFeedSummary(currentFeeds)
-            aiSummaryText.value = summary
+            val feedTextList = currentFeeds.take(10).joinToString("\n- ") { feed ->
+                "[${feed.platform}] ${feed.authorName}: ${feed.content}"
+            }
+            val prompt = "Ringkasan eksekutif 2-3 kalimat untuk aktivitas sosial media berikut:\n$feedTextList"
+            try {
+                val settings = userSettings.value
+                val summary = routerGatewayService.generateAiResponse(
+                    toolTitle = "AI Summarizer",
+                    userPrompt = prompt,
+                    chatHistory = null,
+                    gatewayUrl = settings.gatewayUrl,
+                    authToken = settings.gatewayToken,
+                    model = settings.gatewayModel
+                )
+                aiSummaryText.value = summary
+            } catch (e: Exception) {
+                aiSummaryText.value = "Gagal memuat ringkasan AI: ${e.localizedMessage}"
+            }
             isAiSummaryLoading.value = false
         }
     }
@@ -214,16 +236,86 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     fun generateSmartReplies(messageContent: String, authorName: String) {
         viewModelScope.launch {
             isSmartRepliesLoading.value = true
-            val replies = geminiService.generateSmartReplies(messageContent, authorName)
-            smartReplies.value = replies
+            val prompt = "Buatkan 3 opsi balasan singkat yang sopan dan ramah dalam bahasa Indonesia untuk pesan dari $authorName: \"$messageContent\""
+            try {
+                val settings = userSettings.value
+                val result = routerGatewayService.generateAiResponse(
+                    toolTitle = "AI Writer",
+                    userPrompt = prompt,
+                    chatHistory = null,
+                    gatewayUrl = settings.gatewayUrl,
+                    authToken = settings.gatewayToken,
+                    model = settings.gatewayModel
+                )
+                val lines = result.lines().map { it.trim().removePrefix("-").removePrefix("1.").removePrefix("2.").removePrefix("3.").trim() }.filter { it.isNotBlank() }
+                smartReplies.value = if (lines.isNotEmpty()) lines.take(3) else listOf(result)
+            } catch (e: Exception) {
+                smartReplies.value = listOf("Terima kasih informasinya! 👍", "Baik, akan saya periksa.", "Ada yang bisa dibantu lagi?")
+            }
             isSmartRepliesLoading.value = false
         }
     }
 
     fun enhanceCaption(caption: String, onResult: (String) -> Unit) {
         viewModelScope.launch {
-            val enhanced = geminiService.enhanceCaption(caption)
-            onResult(enhanced)
+            val prompt = "Tingkatkan caption sosial media berikut agar lebih menarik dengan hashtag relevan:\n\"$caption\""
+            try {
+                val settings = userSettings.value
+                val enhanced = routerGatewayService.generateAiResponse(
+                    toolTitle = "AI Writer",
+                    userPrompt = prompt,
+                    chatHistory = null,
+                    gatewayUrl = settings.gatewayUrl,
+                    authToken = settings.gatewayToken,
+                    model = settings.gatewayModel
+                )
+                onResult(enhanced)
+            } catch (e: Exception) {
+                onResult("$caption ✨ #SocialHub")
+            }
+        }
+    }
+
+    fun runAiFeature(
+        toolTitle: String,
+        userPrompt: String,
+        chatHistory: List<Map<String, String>>?,
+        onResult: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val settings = userSettings.value
+                val result = routerGatewayService.generateAiResponse(
+                    toolTitle = toolTitle,
+                    userPrompt = userPrompt,
+                    chatHistory = chatHistory,
+                    gatewayUrl = settings.gatewayUrl,
+                    authToken = settings.gatewayToken,
+                    model = settings.gatewayModel
+                )
+                onResult(result)
+            } catch (e: Exception) {
+                onError(e.localizedMessage ?: "Unknown error occurred")
+            }
+        }
+    }
+
+    fun testGatewayConnection(
+        url: String,
+        token: String,
+        model: String,
+        onResult: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            val success = routerGatewayService.testConnection(url, token, model)
+            onResult(success)
+        }
+    }
+
+    fun updateGatewayConfig(url: String, token: String, model: String) {
+        viewModelScope.launch {
+            preferencesRepository.updateGatewayConfig(url, token, model)
         }
     }
 

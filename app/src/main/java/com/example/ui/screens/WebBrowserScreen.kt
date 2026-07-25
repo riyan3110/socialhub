@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -48,6 +49,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DesktopMac
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.Lock
@@ -106,34 +109,44 @@ fun WebBrowserScreen(
     initialPlatform: SocialPlatform = SocialPlatform.TWITTER_X,
     initialUrl: String? = null,
     onNavigateHome: () -> Unit = {},
+    webViewsMap: MutableMap<SocialPlatform, WebView> = remember { mutableMapOf() },
+    desktopModeMap: MutableMap<SocialPlatform, Boolean> = remember { mutableMapOf() },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    var activePlatform by remember { mutableStateOf(initialPlatform) }
-    var currentUrl by remember { mutableStateOf(initialUrl ?: initialPlatform.webUrl) }
-    var urlInputText by remember { mutableStateOf(currentUrl) }
-    var pageTitle by remember { mutableStateOf(activePlatform.displayName) }
+    var activePlatform by remember(initialPlatform) { mutableStateOf(initialPlatform) }
+    var currentUrl by remember(initialPlatform, initialUrl) { mutableStateOf(initialUrl ?: initialPlatform.webUrl) }
+    var urlInputText by remember(initialPlatform, initialUrl) { mutableStateOf(currentUrl) }
+    var pageTitle by remember(initialPlatform) { mutableStateOf(activePlatform.displayName) }
 
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(false) }
     var loadingProgress by remember { mutableIntStateOf(0) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
-    var isDesktopSite by remember { mutableStateOf(false) }
+    var isDesktopSite by remember { mutableStateOf(desktopModeMap[activePlatform] ?: false) }
+
+    androidx.compose.runtime.LaunchedEffect(activePlatform) {
+        val wv = webViewsMap[activePlatform]
+        currentUrl = wv?.url ?: (if (activePlatform == initialPlatform && initialUrl != null) initialUrl else activePlatform.webUrl)
+        urlInputText = currentUrl
+        pageTitle = wv?.title ?: activePlatform.displayName
+        canGoBack = wv?.canGoBack() ?: false
+        canGoForward = wv?.canGoForward() ?: false
+        isDesktopSite = desktopModeMap[activePlatform] ?: false
+        webViewRef = wv
+    }
 
     var menuExpanded by remember { mutableStateOf(false) }
     var fileUploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     var pendingWebPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
 
-    // Persistent WebViews map to preserve session, history, DOM storage, and scroll position per platform
-    val webViewsMap = remember { mutableMapOf<SocialPlatform, WebView>() }
-    val desktopModeMap = remember { mutableMapOf<SocialPlatform, Boolean>() }
-
     // Fullscreen video view reference
     var customVideoView by remember { mutableStateOf<View?>(null) }
     var customVideoCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+    var isFullScreen by remember { mutableStateOf(false) }
 
     // Colors for secure/search icon inside composable scope
     val searchIconColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -176,11 +189,13 @@ fun WebBrowserScreen(
     }
 
     // Back Handler logic
-    BackHandler(enabled = customVideoView != null || canGoBack) {
+    BackHandler(enabled = customVideoView != null || isFullScreen || canGoBack) {
         if (customVideoView != null) {
             customVideoCallback?.onCustomViewHidden()
             customVideoView = null
             customVideoCallback = null
+        } else if (isFullScreen) {
+            isFullScreen = false
         } else if (canGoBack) {
             webViewRef?.goBack()
         }
@@ -221,7 +236,7 @@ fun WebBrowserScreen(
     }
 
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = if (isFullScreen) Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background) else modifier.fillMaxSize()
     ) {
         // Top Platform Tab Selector Row
         LazyRow(
@@ -269,6 +284,19 @@ fun WebBrowserScreen(
                         Icon(
                             imageVector = Icons.Default.Home,
                             contentDescription = "Beranda",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { isFullScreen = !isFullScreen },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("browser_fullscreen_toggle")
+                    ) {
+                        Icon(
+                            imageVector = if (isFullScreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                            contentDescription = if (isFullScreen) "Keluar Layar Penuh" else "Layar Penuh",
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -768,8 +796,15 @@ fun WebBrowserScreen(
                             }
                         }
 
-                        val initialWV = createWebViewForPlatform(activePlatform, currentUrl)
-                        webViewsMap[activePlatform] = initialWV
+                        val existingWV = webViewsMap[activePlatform]
+                        val initialWV = if (existingWV != null) {
+                            (existingWV.parent as? ViewGroup)?.removeView(existingWV)
+                            existingWV
+                        } else {
+                            val newWV = createWebViewForPlatform(activePlatform, currentUrl)
+                            webViewsMap[activePlatform] = newWV
+                            newWV
+                        }
                         addView(initialWV)
                         webViewRef = initialWV
                     }
@@ -991,16 +1026,12 @@ fun WebBrowserScreen(
         }
     }
 
-    // Clean up WebViews when WebBrowserScreen is disposed
+    // Detach WebViews when WebBrowserScreen is disposed to preserve session and scroll position in webViewsMap
     DisposableEffect(Unit) {
         onDispose {
             webViewsMap.values.forEach { webView ->
-                webView.stopLoading()
-                webView.clearHistory()
-                webView.removeAllViews()
-                webView.destroy()
+                (webView.parent as? ViewGroup)?.removeView(webView)
             }
-            webViewsMap.clear()
             webViewRef = null
         }
     }

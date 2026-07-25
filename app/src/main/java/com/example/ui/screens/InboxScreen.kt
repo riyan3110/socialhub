@@ -22,8 +22,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -35,6 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,9 +69,29 @@ import com.example.ui.components.ChatListItem
 import com.example.ui.components.SocialBrandBadge
 import com.example.ui.viewmodel.SocialViewModel
 
+data class AiFeatureShortcut(
+    val title: String,
+    val icon: ImageVector
+)
+
+private val aiAssistantFeatures = listOf(
+    AiFeatureShortcut("AI Chat", Icons.Default.Chat),
+    AiFeatureShortcut("AI Writer", Icons.Default.Edit),
+    AiFeatureShortcut("AI Translate", Icons.Default.Translate),
+    AiFeatureShortcut("AI Summarizer", Icons.Default.Description),
+    AiFeatureShortcut("AI Grammar", Icons.Default.Check),
+    AiFeatureShortcut("AI Rewrite", Icons.Default.Refresh),
+    AiFeatureShortcut("AI Image Prompt", Icons.Default.Image),
+    AiFeatureShortcut("AI Video Prompt", Icons.Default.PlayArrow),
+    AiFeatureShortcut("AI Hashtag Generator", Icons.Default.List),
+    AiFeatureShortcut("AI Bio Generator", Icons.Default.Person),
+    AiFeatureShortcut("AI Content Ideas", Icons.Default.Lightbulb)
+)
+
 @Composable
 fun InboxScreen(
     viewModel: SocialViewModel,
+    onNavigateToAiFeatures: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val messages by viewModel.messages.collectAsState()
@@ -68,6 +100,7 @@ fun InboxScreen(
 
     var selectedPlatformFilter by remember { mutableStateOf<SocialPlatform?>(null) }
     var activeChatForReply by remember { mutableStateOf<SocialFeedEntity?>(null) }
+    var messageToDelete by remember { mutableStateOf<SocialFeedEntity?>(null) }
     var replyInputText by remember { mutableStateOf("") }
     var showSuccessToast by remember { mutableStateOf(false) }
 
@@ -85,13 +118,113 @@ fun InboxScreen(
             contentPadding = PaddingValues(bottom = 90.dp),
             modifier = Modifier.fillMaxSize()
         ) {
+            // AI Assistant Section Header
+            item {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .testTag("ai_assistant_section")
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = "AI Assistant",
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "AI Assistant",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Asisten AI pintar untuk perpesanan & konten",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            TextButton(
+                                onClick = { onNavigateToAiFeatures(null) },
+                                modifier = Modifier.testTag("see_all_ai_features")
+                            ) {
+                                Text("Semua AI", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(vertical = 2.dp)
+                        ) {
+                            items(aiAssistantFeatures) { feature ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                    modifier = Modifier
+                                        .clickable { onNavigateToAiFeatures(feature.title) }
+                                        .testTag("ai_feature_${feature.title.lowercase().replace(" ", "_")}")
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = feature.icon,
+                                            contentDescription = feature.title,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = feature.title,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Header Stats
             item {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     Text(
                         text = "Kotak Masuk Terpadu",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
+                        fontSize = 20.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
@@ -191,10 +324,39 @@ fun InboxScreen(
                             viewModel.markAsRead(it.id)
                             viewModel.generateSmartReplies(it.content, it.authorName)
                         },
+                        onDeleteClick = {
+                            messageToDelete = it
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                 }
             }
+        }
+
+        // Delete Confirmation Dialog
+        if (messageToDelete != null) {
+            val msg = messageToDelete!!
+            AlertDialog(
+                onDismissRequest = { messageToDelete = null },
+                title = { Text("Hapus Pesan") },
+                text = { Text("Apakah Anda yakin ingin menghapus pesan dari ${msg.authorName}?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteFeed(msg.id)
+                            messageToDelete = null
+                        },
+                        modifier = Modifier.testTag("confirm_delete_message_button")
+                    ) {
+                        Text("Hapus")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { messageToDelete = null }) {
+                        Text("Batal")
+                    }
+                }
+            )
         }
 
         // Quick Reply AI Dialog Modal

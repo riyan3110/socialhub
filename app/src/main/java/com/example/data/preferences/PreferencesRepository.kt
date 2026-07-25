@@ -105,7 +105,10 @@ data class UserSettings(
     val aiModelTier: String = "Gemini 2.5 Flash",
     val appLanguage: String = "id", // id, en
     val analyticsEnabled: Boolean = true,
-    val secureBrowsing: Boolean = true
+    val secureBrowsing: Boolean = true,
+    val gatewayUrl: String = "https://api.9router.com/v1",
+    val gatewayToken: String = "",
+    val gatewayModel: String = "gpt-4o"
 )
 
 class PreferencesRepository(private val context: Context) {
@@ -125,6 +128,9 @@ class PreferencesRepository(private val context: Context) {
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val ANALYTICS_ENABLED = booleanPreferencesKey("analytics_enabled")
         val SECURE_BROWSING = booleanPreferencesKey("secure_browsing")
+        val GATEWAY_URL = stringPreferencesKey("gateway_url")
+        val GATEWAY_TOKEN = stringPreferencesKey("gateway_token")
+        val GATEWAY_MODEL = stringPreferencesKey("gateway_model")
     }
 
     val userSettingsFlow: Flow<UserSettings> = context.dataStore.data.map { prefs ->
@@ -145,7 +151,10 @@ class PreferencesRepository(private val context: Context) {
             aiModelTier = prefs[PreferencesKeys.AI_MODEL_TIER] ?: "Gemini 2.5 Flash",
             appLanguage = prefs[PreferencesKeys.APP_LANGUAGE] ?: "id",
             analyticsEnabled = prefs[PreferencesKeys.ANALYTICS_ENABLED] ?: true,
-            secureBrowsing = prefs[PreferencesKeys.SECURE_BROWSING] ?: true
+            secureBrowsing = prefs[PreferencesKeys.SECURE_BROWSING] ?: true,
+            gatewayUrl = prefs[PreferencesKeys.GATEWAY_URL] ?: "https://api.9router.com/v1",
+            gatewayToken = prefs[PreferencesKeys.GATEWAY_TOKEN] ?: "",
+            gatewayModel = prefs[PreferencesKeys.GATEWAY_MODEL] ?: "gpt-4o"
         )
     }
 
@@ -224,6 +233,14 @@ class PreferencesRepository(private val context: Context) {
     suspend fun updateSecureBrowsing(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.SECURE_BROWSING] = enabled
+        }
+    }
+
+    suspend fun updateGatewayConfig(url: String, token: String, model: String) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.GATEWAY_URL] = url
+            prefs[PreferencesKeys.GATEWAY_TOKEN] = token
+            prefs[PreferencesKeys.GATEWAY_MODEL] = model
         }
     }
 }

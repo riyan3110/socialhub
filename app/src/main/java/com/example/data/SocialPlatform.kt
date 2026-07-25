@@ -19,6 +19,21 @@ enum class SocialPlatform(
     val description: String = ""
 ) {
     // --- Embedded Modern WebView Platforms ---
+    YOUTUBE(
+        id = "YOUTUBE",
+        displayName = "YouTube",
+        shortName = "YT",
+        handlePrefix = "@",
+        brandColor = Color(0xFFFF0000),
+        bentoContainerColor = BentoYouTubeContainer,
+        bentoBorderColor = BentoYouTubeBorder,
+        bentoTextColor = BentoYouTubeText,
+        webUrl = "https://www.youtube.com",
+        iconName = "PlayArrow",
+        useCustomTabs = false,
+        category = "Social",
+        description = "Videos, music, and streaming entertainment"
+    ),
     TWITTER_X(
         id = "TWITTER_X",
         displayName = "Twitter / X",

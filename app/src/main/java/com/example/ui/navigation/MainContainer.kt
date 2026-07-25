@@ -1,5 +1,6 @@
 package com.example.ui.navigation
 
+import android.webkit.WebView
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.SocialPlatform
 import com.example.ui.screens.AccountsScreen
+import com.example.ui.screens.AiFeaturesScreen
 import com.example.ui.screens.ComposerScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.InboxScreen
@@ -72,7 +74,8 @@ enum class NavigationTab(
 enum class ActiveScreen {
     TAB,
     SETTINGS,
-    THEME_MANAGER
+    THEME_MANAGER,
+    AI_FEATURES
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +87,10 @@ fun MainContainer(
     var currentTab by remember { mutableStateOf(NavigationTab.FEED) }
     var activeScreen by remember { mutableStateOf(ActiveScreen.TAB) }
     var initialWebPlatform by remember { mutableStateOf(SocialPlatform.TELEGRAM) }
+    var selectedAiToolTitle by remember { mutableStateOf<String?>(null) }
+
+    val webViewsMap = remember { mutableMapOf<SocialPlatform, WebView>() }
+    val desktopModeMap = remember { mutableMapOf<SocialPlatform, Boolean>() }
 
     val messages by viewModel.messages.collectAsState()
     val unreadCount = remember(messages) { messages.count { it.isUnread } }
@@ -222,6 +229,14 @@ fun MainContainer(
                         viewModel = viewModel,
                         onBack = { activeScreen = ActiveScreen.TAB }
                     )
+                    ActiveScreen.AI_FEATURES -> AiFeaturesScreen(
+                        viewModel = viewModel,
+                        initialToolTitle = selectedAiToolTitle,
+                        onBack = {
+                            selectedAiToolTitle = null
+                            activeScreen = ActiveScreen.TAB
+                        }
+                    )
                     ActiveScreen.SETTINGS -> SettingsScreen(
                         viewModel = viewModel,
                         onNavigateToThemeManager = { activeScreen = ActiveScreen.THEME_MANAGER }
@@ -238,16 +253,26 @@ fun MainContainer(
                                 onNavigateToComposer = {
                                     activeScreen = ActiveScreen.TAB
                                     currentTab = NavigationTab.COMPOSER
+                                },
+                                onNavigateToAiFeatures = {
+                                    selectedAiToolTitle = null
+                                    activeScreen = ActiveScreen.AI_FEATURES
                                 }
                             )
                             NavigationTab.INBOX -> InboxScreen(
-                                viewModel = viewModel
+                                viewModel = viewModel,
+                                onNavigateToAiFeatures = { toolTitle ->
+                                    selectedAiToolTitle = toolTitle
+                                    activeScreen = ActiveScreen.AI_FEATURES
+                                }
                             )
                             NavigationTab.COMPOSER -> ComposerScreen(
                                 viewModel = viewModel
                             )
                             NavigationTab.WEB -> WebBrowserScreen(
                                 initialPlatform = initialWebPlatform,
+                                webViewsMap = webViewsMap,
+                                desktopModeMap = desktopModeMap,
                                 onNavigateHome = {
                                     activeScreen = ActiveScreen.TAB
                                     currentTab = NavigationTab.FEED

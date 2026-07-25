@@ -58,6 +58,10 @@ class SocialRepository(private val socialDao: SocialDao) {
         socialDao.markFeedAsRead(feedId)
     }
 
+    suspend fun deleteFeed(feedId: Long) {
+        socialDao.deleteFeed(feedId)
+    }
+
     suspend fun publishCrossPost(
         caption: String,
         mediaUri: String?,
