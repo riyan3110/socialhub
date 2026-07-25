@@ -2,9 +2,18 @@ name: Build APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/build-apk.yml
 
 permissions:
   contents: write
+
+concurrency:
+  group: socialhub-apk-build
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -26,16 +35,26 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Apply latest Social Hub files
+      - name: Apply latest Social Hub project
+        id: apply_patch
         shell: bash
         run: |
-          set -euo pipefail
-          test -f socialhub-patch.part01.b64
-          cat socialhub-patch.part*.b64 | base64 --decode > /tmp/socialhub-patch.tar.gz
-          tar -tzf /tmp/socialhub-patch.tar.gz
-          tar -xzf /tmp/socialhub-patch.tar.gz -C .
+          set +e
+          {
+            set -euo pipefail
+            parts=()
+            for n in $(seq -w 1 12); do
+              part="socialhub-patch.part${n}.b64"
+              test -s "$part"
+              parts+=("$part")
+            done
 
-          python3 - <<'PY'
+            cat "${parts[@]}" | tr -d '\r\n' | base64 --decode > /tmp/socialhub-patch.tar.gz
+            gzip -t /tmp/socialhub-patch.tar.gz
+            tar -tzf /tmp/socialhub-patch.tar.gz
+            tar -xzf /tmp/socialhub-patch.tar.gz -C .
+
+            python3 - <<'PY'
           from pathlib import Path
           import re
 
@@ -56,36 +75,119 @@ jobs:
           gradle_file.write_text(text)
           PY
 
-      - name: Create .env
+            test -s gradle/wrapper/gradle-wrapper.jar
+            unzip -t gradle/wrapper/gradle-wrapper.jar >/dev/null
+            chmod +x ./gradlew
+          } > >(tee apply-patch.log) 2>&1
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Report patch failure
+        if: steps.apply_patch.outputs.exit_code != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tail -n 500 apply-patch.log > ci-build-error.log
+          cat > build-status.json <<EOF
+          {
+            "status": "patch_failed",
+            "run_id": "${{ github.run_id }}",
+            "run_number": "${{ github.run_number }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-build-error.log build-status.json
+          git commit -m "CI: record Social Hub patch failure" || true
+          git push origin HEAD:master
+          exit 1
+
+      - name: Save latest project before build
+        if: steps.apply_patch.outputs.exit_code == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f socialhub-patch.part*.b64
+          rm -f project-update.part*.b64 project-update.ready
+          rm -f .github/workflows/apply-uploaded-zip.yml
+          rm -f ci-build-error.log build-status.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Update Social Hub from uploaded ZIP"
+            git push origin HEAD:master
+          fi
+
+      - name: Create environment file
+        if: steps.apply_patch.outputs.exit_code == '0'
         run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
 
-      - name: Grant execute permission
-        run: chmod +x ./gradlew
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        id: gradle_build
+        if: steps.apply_patch.outputs.exit_code == '0'
+        shell: bash
+        run: |
+          set +e
+          ./gradlew assembleDebug --stacktrace --no-daemon > build.log 2>&1
+          code=$?
+          cat build.log
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
 
-      - name: Upload APK
+      - name: Report build failure
+        if: steps.apply_patch.outputs.exit_code == '0' && steps.gradle_build.outputs.exit_code != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tail -n 700 build.log > ci-build-error.log
+          cat > build-status.json <<EOF
+          {
+            "status": "build_failed",
+            "run_id": "${{ github.run_id }}",
+            "run_number": "${{ github.run_number }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+          rm -f .env
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-build-error.log build-status.json
+          git commit -m "CI: record Social Hub build failure" || true
+          git push origin HEAD:master
+          exit 1
+
+      - name: Upload APK artifact
+        if: steps.apply_patch.outputs.exit_code == '0' && steps.gradle_build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
           name: SocialHub-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-      - name: Save updated project
+      - name: Publish installable APK
+        if: steps.apply_patch.outputs.exit_code == '0' && steps.gradle_build.outputs.exit_code == '0'
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .env
-          rm -f socialhub-patch.part*.b64
-          rm -f project-update.part*.b64 project-update.ready
-          rm -f .github/workflows/apply-uploaded-zip.yml
+          mkdir -p releases
+          cp app/build/outputs/apk/debug/app-debug.apk releases/SocialHub-debug.apk
+          sha256sum releases/SocialHub-debug.apk > releases/SocialHub-debug.sha256
+          cat > build-status.json <<EOF
+          {
+            "status": "success",
+            "run_id": "${{ github.run_id }}",
+            "run_number": "${{ github.run_number }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "apk_path": "releases/SocialHub-debug.apk",
+            "artifact": "SocialHub-debug"
+          }
+          EOF
+          rm -f .env build.log apply-patch.log ci-build-error.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No project changes to commit"
-          else
-            git commit -m "Update Social Hub from latest ZIP"
-            git push origin HEAD:master
-          fi
+          git add releases build-status.json
+          git commit -m "Build: publish installable SocialHub APK" || true
+          git push origin HEAD:master
