@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.ContentType
@@ -277,41 +278,64 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun runAiFeature(
-        toolTitle: String,
-        userPrompt: String,
-        chatHistory: List<Map<String, String>>?,
-        onResult: (String) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        viewModelScope.launch {
-            try {
-                val settings = userSettings.value
-                val result = routerGatewayService.generateAiResponse(
-                    toolTitle = toolTitle,
-                    userPrompt = userPrompt,
-                    chatHistory = chatHistory,
-                    gatewayUrl = settings.gatewayUrl,
-                    authToken = settings.gatewayToken,
-                    model = settings.gatewayModel
-                )
-                onResult(result)
-            } catch (e: Exception) {
-                onError(e.localizedMessage ?: "Unknown error occurred")
-            }
-        }
-    }
+       toolTitle: String,
+       userPrompt: String,
+       chatHistory: List<Map<String, String>>?,
+       onResult: (String) -> Unit,
+       onError: (String) -> Unit
+     ) {
+       viewModelScope.launch {
+         try {
+           val settings = userSettings.value
+
+           // Validasi input sebelum request
+           if (settings.gatewayUrl.isBlank()) {
+             onError("Masukkan Gateway URL terlebih dahulu di Pengaturan → AI Gateway Settings.")
+             return@launch
+           }
+           if (settings.gatewayToken.isBlank()) {
+             onError("Masukkan API Key terlebih dahulu di Pengaturan → AI Gateway Settings.")
+             return@launch
+           }
+           if (settings.gatewayModel.isBlank()) {
+             onError("Pilih Model AI terlebih dahulu di Pengaturan → AI Gateway Settings.")
+             return@launch
+           }
+           if (userPrompt.isBlank()) {
+             onError("Prompt tidak boleh kosong.")
+             return@launch
+           }
+
+           Log.i("SocialViewModel", "runAiFeature: tool=$toolTitle, url=${settings.gatewayUrl}, model=${settings.gatewayModel}")
+
+           val result = routerGatewayService.generateAiResponse(
+             toolTitle = toolTitle,
+             userPrompt = userPrompt,
+             chatHistory = chatHistory,
+             gatewayUrl = settings.gatewayUrl,
+             authToken = settings.gatewayToken,
+             model = settings.gatewayModel
+           )
+           Log.i("SocialViewModel", "runAiFeature SUCCESS: ${result.take(100)}...")
+           onResult(result)
+         } catch (e: Exception) {
+           Log.e("SocialViewModel", "runAiFeature ERROR: ${e.localizedMessage}", e)
+           onError(e.localizedMessage ?: "Unknown error occurred")
+         }
+       }
+     }
 
     fun testGatewayConnection(
-        url: String,
-        token: String,
-        model: String,
-        onResult: (Boolean) -> Unit
-    ) {
-        viewModelScope.launch {
-            val success = routerGatewayService.testConnection(url, token, model)
-            onResult(success)
-        }
-    }
+       url: String,
+       token: String,
+       model: String,
+       onResult: (Boolean, String) -> Unit
+     ) {
+       viewModelScope.launch {
+         val (success, message) = routerGatewayService.testConnection(url, token, model)
+         onResult(success, message)
+       }
+     }
 
     fun updateGatewayConfig(url: String, token: String, model: String) {
         viewModelScope.launch {

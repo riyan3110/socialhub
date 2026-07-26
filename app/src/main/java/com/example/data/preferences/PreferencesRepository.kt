@@ -92,23 +92,23 @@ enum class AccentColor(
 }
 
 data class UserSettings(
-    val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
-    val accentColor: AccentColor = AccentColor.PURPLE,
-    val useDynamicColor: Boolean = false,
-    val notificationsEnabled: Boolean = true,
-    val pushAlertsEnabled: Boolean = true,
-    val soundEnabled: Boolean = true,
-    val browserMode: String = "SMART", // SMART, EMBEDDED, CUSTOM_TABS
-    val blockAds: Boolean = true,
-    val clearCacheOnExit: Boolean = false,
-    val aiAutoSummarize: Boolean = true,
-    val aiModelTier: String = "Gemini 2.5 Flash",
-    val appLanguage: String = "id", // id, en
-    val analyticsEnabled: Boolean = true,
-    val secureBrowsing: Boolean = true,
-    val gatewayUrl: String = "https://api.9router.com/v1",
-    val gatewayToken: String = "",
-    val gatewayModel: String = "gpt-4o"
+  val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+  val accentColor: AccentColor = AccentColor.PURPLE,
+  val useDynamicColor: Boolean = false,
+  val notificationsEnabled: Boolean = true,
+  val pushAlertsEnabled: Boolean = true,
+  val soundEnabled: Boolean = true,
+  val browserMode: String = "SMART", // SMART, EMBEDDED, CUSTOM_TABS
+  val blockAds: Boolean = true,
+  val clearCacheOnExit: Boolean = false,
+  val aiAutoSummarize: Boolean = true,
+  val aiModelTier: String = "My2",
+  val appLanguage: String = "id", // id, en
+  val analyticsEnabled: Boolean = true,
+  val secureBrowsing: Boolean = true,
+  val gatewayUrl: String = "",
+  val gatewayToken: String = "",
+  val gatewayModel: String = ""
 )
 
 class PreferencesRepository(private val context: Context) {
@@ -148,13 +148,13 @@ class PreferencesRepository(private val context: Context) {
             blockAds = prefs[PreferencesKeys.BLOCK_ADS] ?: true,
             clearCacheOnExit = prefs[PreferencesKeys.CLEAR_CACHE_EXIT] ?: false,
             aiAutoSummarize = prefs[PreferencesKeys.AI_AUTO_SUMMARIZE] ?: true,
-            aiModelTier = prefs[PreferencesKeys.AI_MODEL_TIER] ?: "Gemini 2.5 Flash",
+            aiModelTier = prefs[PreferencesKeys.AI_MODEL_TIER] ?: "My2",
             appLanguage = prefs[PreferencesKeys.APP_LANGUAGE] ?: "id",
             analyticsEnabled = prefs[PreferencesKeys.ANALYTICS_ENABLED] ?: true,
             secureBrowsing = prefs[PreferencesKeys.SECURE_BROWSING] ?: true,
-            gatewayUrl = prefs[PreferencesKeys.GATEWAY_URL] ?: "https://api.9router.com/v1",
-            gatewayToken = prefs[PreferencesKeys.GATEWAY_TOKEN] ?: "",
-            gatewayModel = prefs[PreferencesKeys.GATEWAY_MODEL] ?: "gpt-4o"
+            gatewayUrl = prefs[PreferencesKeys.GATEWAY_URL] ?: "",
+             gatewayToken = prefs[PreferencesKeys.GATEWAY_TOKEN] ?: "",
+             gatewayModel = prefs[PreferencesKeys.GATEWAY_MODEL] ?: "My2"
         )
     }
 

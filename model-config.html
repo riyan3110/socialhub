@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Model Config — 9Router</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f0f13;
+    color: #e4e4e7;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, #a78bfa, #6366f1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    color: #71717a;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #a1a1aa;
+    margin-bottom: 6px;
+    margin-top: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  input, select {
+    width: 100%;
+    padding: 12px 14px;
+    background: #0f0f13;
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    color: #e4e4e7;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+  }
+  input:focus, select:focus {
+    border-color: #7c3aed;
+  }
+  select option {
+    background: #1a1a24;
+  }
+  .btn-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    color: white;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary {
+    background: #2a2a3a;
+    color: #e4e4e7;
+  }
+  .btn-secondary:hover { background: #3a3a4a; }
+  .status {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    display: none;
+  }
+  .status.success {
+    display: block;
+    background: #064e3b;
+    border: 1px solid #059669;
+    color: #6ee7b7;
+  }
+  .status.error {
+    display: block;
+    background: #450a0a;
+    border: 1px solid #dc2626;
+    color: #fca5a5;
+  }
+  .status.loading {
+    display: block;
+    background: #1e1b4b;
+    border: 1px solid #6366f1;
+    color: #a5b4fc;
+  }
+  .models-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+  .models-grid button {
+    padding: 8px;
+    font-size: 12px;
+    background: #0f0f13;
+    border: 1px solid #2a2a3a;
+    color: #a1a1aa;
+    border-radius: 8px;
+  }
+  .models-grid button:hover, .models-grid button.active {
+    border-color: #7c3aed;
+    color: #e4e4e7;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 6px;
+  }
+  .badge-green { background: #064e3b; color: #6ee7b7; }
+  .badge-purple { background: #3b0764; color: #c4b5fd; }
+  @media (max-width: 480px) {
+    .card { padding: 20px; }
+    .btn-group { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>⚡ Hermes Model Config</h1>
+  <p class="subtitle">9router — VPS 43.159.50.231:20130</p>
+
+  <label>Gateway URL</label>
+  <input id="gatewayUrl" value="http://43.159.50.231:20130/v1" />
+
+  <label>API Key</label>
+  <input id="apiKey" type="password" value="sk-f0c3e4a02e7d8b82-1hugak-690d44d6" />
+
+  <label>Model</label>
+  <div class="models-grid" id="modelGrid">
+    <button class="active" data-model="My1">My1</button>
+    <button data-model="My2">My2</button>
+    <button data-model="My3">My3</button>
+    <button data-model="deepseek-v4-flash">DS V4 Flash</button>
+    <button data-model="gpt-5">GPT-5</button>
+    <button data-model="claude-sonnet-4-6">Claude 4.6</button>
+    <button data-model="glm-5.2">GLM 5.2</button>
+    <button data-model="gemini-2.5-flash">Gemini Flash</button>
+    <button data-model="minimax-m2.7">MiniMax 2.7</button>
+    <button data-model="qwen3-235b-a22b">Qwen3 235B</button>
+  </div>
+  <input id="modelName" style="margin-top:8px" placeholder="Atau ketik manual..." />
+
+  <div class="btn-group">
+    <button class="btn-primary" onclick="testConnection()">🔄 Test</button>
+    <button class="btn-primary" onclick="saveConfig()">💾 Simpan</button>
+  </div>
+  <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="copyToClipboard()">📋 Copy Config ke Clipboard</button>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+  // Load from localStorage
+  document.getElementById('gatewayUrl').value = localStorage.getItem('gw_url') || 'http://43.159.50.231:20130/v1';
+  document.getElementById('apiKey').value = localStorage.getItem('gw_key') || 'sk-f0c3e4a02e7d8b82-1hugak-690d44d6';
+  document.getElementById('modelName').value = localStorage.getItem('gw_model') || 'My1';
+
+  // Highlight active model
+  const activeModel = document.getElementById('modelName').value;
+  document.querySelectorAll('.models-grid button').forEach(b => {
+    b.classList.toggle('active', b.dataset.model === activeModel);
+    b.onclick = () => {
+      document.querySelectorAll('.models-grid button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      document.getElementById('modelName').value = b.dataset.model;
+    };
+  });
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status ' + type;
+  }
+
+  function getConfig() {
+    let url = document.getElementById('gatewayUrl').value.trim();
+    if (url.endsWith('/')) url = url.slice(0, -1);
+    const key = document.getElementById('apiKey').value.trim();
+    const model = document.getElementById('modelName').value.trim() || 'My1';
+    return { url, key, model };
+  }
+
+  async function testConnection() {
+    const { url, key, model } = getConfig();
+    setStatus('⏳ Testing connection...', 'loading');
+
+    try {
+      const res = await fetch(url + '/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + key
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [{ role: 'user', content: 'ping' }]
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.choices) {
+        setStatus('✅ Connected! Model: ' + model + ' responds OK', 'success');
+      } else {
+        setStatus('❌ Error: ' + (data.error?.message || res.status), 'error');
+      }
+    } catch(e) {
+      setStatus('❌ Connection failed: ' + e.message, 'error');
+    }
+  }
+
+  function saveConfig() {
+    const { url, key, model } = getConfig();
+    localStorage.setItem('gw_url', url);
+    localStorage.setItem('gw_key', key);
+    localStorage.setItem('gw_model', model);
+    setStatus('💾 Config saved to browser. URL: ' + url + ' | Model: ' + model, 'success');
+  }
+
+  function copyToClipboard() {
+    const { url, key, model } = getConfig();
+    const text = `Gateway URL: ${url}/chat/completions\nAuth: Bearer ${key}\nModel: ${model}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setStatus('📋 Copied to clipboard!', 'success');
+    }).catch(() => {
+      setStatus('❌ Copy failed', 'error');
+    });
+  }
+</script>
+</body>
+</html>
